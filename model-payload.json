@@ -1,0 +1,218 @@
+Register
+
+{
+    "username": "pth",
+    "email": "pvongnorkeo@gmail.com",
+    "first_name": "pasith",
+    "last_name": "vongnorkeo",
+    "password": "PthusingMA4153",
+    "gender": "male",
+    "birth_date": "15/04/1999",
+    "village": "xiengyuen",
+    "district_id": 24,
+    "country_id": 1724,
+    "phone": "1111",
+}
+
+Create Users
+
+{
+    "username": "pth",
+    "email": "pvongnorkeo@gmail.com",
+    "first_name": "pasith",
+    "last_name": "vongnorkeo",
+    "password": "PthusingMA4153",
+    "gender": "male",
+    "birth_date": "15/04/1999",
+    "village": "xiengyuen",
+    "district_id": 24,
+    "country_id": 1724,
+    "phone": "1111",
+    "role_ids": [
+        1
+    ],
+    "is_staff": true,
+    "is_active": true,
+}
+
+
+branch
+
+[
+    {
+        "name": "test",
+        "restaurant_id": 8,
+        "village": "test",
+        "country_id": 1724,
+        "longtitude": 22,
+        "latitude": 22
+    }
+]
+
+role
+
+[
+    {
+        "name": "admin"
+    },
+    {
+        "name": "user"
+    },
+    {
+        "name": "manager"
+    },
+    {
+        "name": "superadmin"
+    }
+]
+
+museum 
+
+[
+    {
+        "name": "ready for test"
+    }
+]
+
+coupon
+
+[
+    {
+        "code": "test",
+        "type": "price",
+        "amount": 15000,
+        "expiration_date": "3/2/2023",
+        "branch_id": 2
+    }
+]
+
+unit 
+
+[
+    {
+        "name": "kilo",
+        "abbreviation": "kg",
+        "branch_id": 1
+    }
+]
+
+
+ingredient
+
+[
+    {
+        "name": "rice",
+        "branch_id": 1
+    }
+]
+
+menu_ingredient_unit
+
+[
+    {
+        "ingredient_unit_id": 1,
+        "menu_id": 1,
+        "used_quantity": 1,
+        "branch_id": 1
+    }
+]
+
+
+ingredient_unit
+
+[
+    {
+        "ingredient_id": 1,
+        "quantity": 10,
+        "unit_price": 25000,
+        "branch_id": 1,
+        "unit_id": 1
+    }
+]
+
+menu
+
+[
+    {
+        "name": "lazpote",
+        "price": 75000,
+        "price": 250000,
+        "branch_id": 1
+    }
+]
+
+
+supplier
+
+[
+    {
+        "name": "alesto",
+        "country_id": "1724",
+        "more_contact": "test"
+    }
+]
+
+{
+    "name": "test"
+}
+
+coupon
+
+{
+    "code": "test",
+    "type": "percent",
+    "amount": 10.2
+}
+
+package
+
+{
+    "name": "test",
+    "description": "ffff",
+    "duration": 30,
+    "user_limit": 20,
+    "price": 350000
+}
+
+payment-package
+
+{
+    "user_id": 4,
+    "package_id": 3,
+    "status": "success"
+}
+
+login 
+
+{
+    "email": "pvongnorkeo@gmail.com",
+    "password": "PthusingMA4153"
+}
+
+booking-schedule
+
+{
+    "title": "test",
+    "start_date": "13/02/2023 10:33",
+    "end_date": "13/02/2023 12:33",
+    "user_limit": 10,
+    "price": 10
+}
+
+payment-museum-schedules
+
+{
+    "user_id": 1,
+    "museum_schedules": [
+        {"id": 1, "user_limit": 3}
+    ]
+}
+
+http: //localhost:3000/api/v1/users
+http: //localhost:3000/api/v1/users/delete
+http: //localhost:3000/api/v1/auth/register
+http: //localhost:3000/api/v1/auth/login
+http: //localhost:3000/api/v1/restaurants/first-time
+
+npx prisma migrate dev
+npx prisma generate

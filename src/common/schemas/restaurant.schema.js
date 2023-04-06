@@ -1,0 +1,45 @@
+"use strict";
+exports.__esModule = true;
+exports.deleteManyRestaurantSchema = exports.updateManyRestaurantSchema = exports.createManyRestaurantSchema = exports.createFirstTimeRestaurantSchema = void 0;
+var JoiCore = require("joi");
+var date_1 = require("@joi/date");
+var Joi = JoiCore.extend(date_1["default"]);
+exports.createFirstTimeRestaurantSchema = Joi.object({
+    name: Joi.string().required(),
+    email: Joi.string().email({ tlds: { allow: false } }),
+    phone: Joi.string(),
+    country_id: Joi.number().strict().required(),
+    district_id: Joi.number().strict(),
+    website: Joi.string().uri({
+        scheme: ['http', 'https']
+    }),
+    info: Joi.string(),
+    description: Joi.string()
+});
+exports.createManyRestaurantSchema = Joi.array().items({
+    name: Joi.string().required(),
+    country_id: Joi.number().strict().required(),
+    district_id: Joi.number().strict(),
+    email: Joi.string().email({ tlds: { allow: false } }),
+    phone: Joi.string(),
+    website: Joi.string().uri({
+        scheme: ['http', 'https']
+    }),
+    info: Joi.string(),
+    description: Joi.string()
+}).min(1);
+exports.updateManyRestaurantSchema = Joi.array().items({
+    id: Joi.number().strict().required(),
+    name: Joi.string(),
+    email: Joi.string().email({ tlds: { allow: false } }),
+    phone: Joi.string(),
+    website: Joi.string().uri({
+        scheme: ['http', 'https']
+    }),
+    info: Joi.string(),
+    description: Joi.string(),
+    delete_image: Joi.boolean()
+}).min(1);
+exports.deleteManyRestaurantSchema = Joi.array().items({
+    id: Joi.number().strict().required()
+}).min(1);

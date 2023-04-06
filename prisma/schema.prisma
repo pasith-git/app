@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  male
+  female
+  lgbtq
+}
+
+enum CouponType {
+  percent
+  price
+}
+
+enum Status {
+  pending
+  success
+  failure
+}
+
+enum ScheduleStatus {
+  pending
+  active
+  ended
+}
+
+enum ScheduleUserLimitStatus {
+  available
+  full
+}
+
+enum PaymentType {
+  bank
+  cash
+}
+
+model Country {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(70)
+  image_path String?  @unique
+  num_code   String?  @db.VarChar(20)
+  locale     String   @unique @db.VarChar(10)
+  users      User[]
+  museums    Museum[]
+
+  @@map("countries")
+}
+
+model Province {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.VarChar(70)
+  districts District[]
+
+  @@map("provinces")
+}
+
+model District {
+  id          Int    @id @default(autoincrement())
+  name        String @unique @db.VarChar(70)
+  province_id Int
+
+  province Province @relation(fields: [province_id], references: [id], onUpdate: Cascade)
+  museums  Museum[]
+
+  @@map("districts")
+}
+
+model Museum {
+  id                Int      @id @default(autoincrement())
+  name              String   @db.VarChar(70)
+  email             String?  @unique
+  phone             String?  @unique @db.VarChar(25)
+  logo              String?  @unique
+  country_id        Int
+  district_id       Int?
+  stripe_account_id String?  @unique
+  website           String?  @unique
+  info              String?  @db.Text
+  description       String?  @db.Text
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  country                   Country                 @relation(fields: [country_id], references: [id])
+  district                  District?               @relation(fields: [district_id], references: [id])
+  users                     User[]
+  payment_packages          PaymentPackage[]
+  museum_gallery_categories MuseumGalleryCategory[]
+  museum_schedules          MuseumSchedule[]
+  museum_schedule_payments  MuseumSchedulePayment[]
+  schedule_times            ScheduleTime[]
+
+  @@map("museums")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  username          String    @unique @db.VarChar(40)
+  first_name        String    @db.VarChar(70)
+  last_name         String    @db.VarChar(70)
+  gender            Gender
+  phone             String    @unique @db.VarChar(25)
+  is_staff          Boolean
+  is_active         Boolean
+  password          String    @unique
+  museum_id         Int?
+  country_id        Int
+  payment_wallet_id Int?      @unique
+  village           String    @db.VarChar(70)
+  image_path        String?   @unique
+  last_login        DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  country                           Country                 @relation(fields: [country_id], references: [id])
+  museum                            Museum?                 @relation(fields: [museum_id], references: [id])
+  roles                             UserRole[]
+  payment_packages                  PaymentPackage[]
+  user_museum_schedule_payments     MuseumSchedulePayment[] @relation("user")
+  employee_museum_schedule_payments MuseumSchedulePayment[] @relation("employee")
+
+  @@map("users")
+}
+
+model Role {
+  id    Int        @id @default(autoincrement())
+  name  String     @unique @db.VarChar(40)
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  user_id Int
+  role_id Int
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, role_id])
+  @@map("user_roles")
+}
+
+model MuseumSchedule {
+  id                       Int                           @id @default(autoincrement())
+  title                    String                        @db.Char(70)
+  start_date               DateTime                      @db.Date
+  description              String?                       @db.Text
+  current_users            Int                           @db.UnsignedInt
+  user_limit               Int                           @db.UnsignedInt
+  museum_id                Int
+  price                    Decimal                       @db.Decimal(10, 2)
+  domestic_price           Decimal?                      @db.Decimal(10, 2)
+  discount                 Decimal?                      @db.Decimal(10, 2)
+  status                   ScheduleStatus
+  user_limit_status        ScheduleUserLimitStatus
+  payment_museum_schedules MuseumSchedulePaymentDetail[]
+  schedule_time_id         Int
+  schedule_time            ScheduleTime                  @relation(fields: [schedule_time_id], references: [id], onUpdate: Restrict)
+
+  museum Museum @relation(fields: [museum_id], references: [id])
+
+  @@unique(fields: [title, start_date, schedule_time_id, museum_id], name: "uniq_1")
+  @@map("museum_schedules")
+}
+
+model ScheduleTime {
+  id               Int              @id @default(autoincrement())
+  title            String           @db.Char(70)
+  start_time       DateTime         @db.Time()
+  end_time         DateTime         @db.Time()
+  museum_id        Int
+  museum_schedules MuseumSchedule[]
+  museum           Museum           @relation(fields: [museum_id], references: [id])
+
+  @@unique(fields: [title, start_time, end_time, museum_id], name: "uniq_1")
+  @@map("schedule_times")
+}
+
+model MuseumSchedulePayment {
+  id                       Int                           @id @default(autoincrement())
+  user_id                  Int?
+  employee_id              Int?
+  museum_id                Int
+  transaction_id           String
+  total                    Decimal                       @db.Decimal(10, 2)
+  status                   Status
+  bank_name                String?                       @db.VarChar(40)
+  payment_type             PaymentType
+  payment_date             DateTime
+  payment_bank_bill_name   String?
+  payment_bank_bill_number String?
+  payment_bank_bill_phone  String?                       @db.VarChar(20)
+  reference_number         String?
+  bank_percentage          Int?
+  bank_percent_amount      Decimal?                      @db.Decimal(10, 2)
+  image_path               String?
+  info                     String?                       @db.Text
+  description              String?                       @db.Text
+  created_at               DateTime                      @default(now())
+  updated_at               DateTime                      @updatedAt
+  museum_schedules         MuseumSchedulePaymentDetail[]
+  museum                   Museum                        @relation(fields: [museum_id], references: [id])
+  user                     User?                         @relation("user", fields: [user_id], references: [id])
+  employee                 User?                         @relation("employee", fields: [employee_id], references: [id])
+
+  @@map("museum_schedule_payments")
+}
+
+model MuseumSchedulePaymentDetail {
+  payment_museum_schedule_id Int
+  museum_schedule_id         Int
+  museum_schedule_payment    MuseumSchedulePayment? @relation(fields: [payment_museum_schedule_id], references: [id], onDelete: Cascade)
+  museum_schedule            MuseumSchedule?        @relation(fields: [museum_schedule_id], references: [id], onDelete: Cascade)
+  user_limit                 Int                    @db.UnsignedInt
+  total                      Decimal                @db.Decimal(10, 2)
+
+  @@id([payment_museum_schedule_id, museum_schedule_id])
+  @@map("museum_schedule_payment_details")
+}
+
+model Package {
+  id               Int              @id @default(autoincrement())
+  name             String           @db.VarChar(70)
+  description      String?          @db.Text
+  duration         Int
+  free_duration    Int?
+  user_limit       Int
+  price            Decimal          @db.Decimal(10, 2)
+  discount         Decimal?         @db.Decimal(10, 2)
+  payment_packages PaymentPackage[]
+
+  @@unique(fields: [name, duration, user_limit, price], name: "uniq_1")
+  @@map("packages")
+}
+
+model PaymentPackage {
+  id                       Int         @id @default(autoincrement())
+  museum_id                Int
+  user_id                  Int
+  transaction_id           String
+  package_id               Int
+  total                    Decimal     @db.Decimal(10, 2)
+  package_start_date       DateTime?
+  package_end_date         DateTime?
+  discount                 Decimal?    @db.Decimal(10, 2)
+  status                   Status
+  payment_type             PaymentType
+  bank_name                String?     @db.VarChar(40)
+  payment_date             DateTime
+  payment_bank_bill_name   String?
+  payment_bank_bill_number String?
+  payment_bank_bill_phone  String?     @db.VarChar(20)
+  reference_number         String?
+  image_path               String?
+  bank_percentage          Int?
+  bank_percent_amount      Decimal?    @db.Decimal(10, 2)
+  info                     String?     @db.Text
+  description              String?     @db.Text
+  created_at               DateTime    @default(now())
+  updated_at               DateTime    @updatedAt
+
+  museum  Museum   @relation(fields: [museum_id], references: [id])
+  user    User?    @relation(fields: [user_id], references: [id])
+  package Package? @relation(fields: [package_id], references: [id])
+
+  @@map("payment_packages")
+}
+
+model MuseumGalleryCategory {
+  id        Int    @id @default(autoincrement())
+  name      String @db.VarChar(70)
+  museum_id Int
+
+  museum           Museum          @relation(fields: [museum_id], references: [id], onDelete: Cascade)
+  museum_galleries MuseumGallery[]
+
+  @@unique(fields: [name, museum_id], name: "uniq_1")
+  @@map("museum_gallery_categories")
+}
+
+model MuseumGallery {
+  id                         Int     @id @default(autoincrement())
+  title                      String  @db.VarChar(70)
+  museum_gallery_category_id Int
+  image_path                 String
+  description                String? @db.Text
+
+  museum_gallery_category MuseumGalleryCategory @relation(fields: [museum_gallery_category_id], references: [id], onDelete: Cascade)
+
+  @@unique(fields: [title, museum_gallery_category_id], name: "uniq_1")
+  @@map("museum_galleries")
+}
