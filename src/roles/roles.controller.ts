@@ -11,28 +11,32 @@ import responseUtil from 'common/utils/response.util';
 import { Request, Response } from 'express';
 import { PrismaService } from 'prisma/prisma.service';
 import { RolesService } from './roles.service';
+import { MuseumIdGuard } from 'common/guards/museumId.guard';
+import { AuthService } from 'auth/auth.service';
+import { UsersService } from 'users/users.service';
 
 const PREFIX = "roles";
 
 @Controller('')
 export class RolesController {
-    constructor(private prisma: PrismaService, private rolesService: RolesService) { }
+    constructor(private prisma: PrismaService, private rolesService: RolesService, private authService: AuthService,
+        private usersService: UsersService) { }
 
-    @UseGuards(AuthGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
-    @Get("roles/:id")
-    async findById(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
-        const data = await this.rolesService.findById(Number(id));
+    @UseGuards(AuthGuard, MuseumIdGuard)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
+    @Get("admin/roles/:id")
+    async findByIdForAdmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
+        const data = await this.rolesService.findById(Number(id), true);
         return res.json(responseUtil({
             req,
             body: data,
         }))
     }
 
-    @UseGuards(AuthGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
-    @Get("roles")
-    async findAll(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: RoleQuery) {
+    @UseGuards(AuthGuard, MuseumIdGuard)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
+    @Get("admin/roles")
+    async findAllForAdmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: RoleQuery) {
         /* const [_, access_token] = req.headers.authorization.split(' ');
         const jwtPayload = this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]); */
@@ -51,10 +55,10 @@ export class RolesController {
 
     /* superadmin */
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/roles/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
-        const data = await this.rolesService.findByIdForSuperadmin(Number(id));
+        const data = await this.rolesService.findById(Number(id));
         return res.json(responseUtil({
             req,
             body: data,
@@ -62,14 +66,14 @@ export class RolesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/roles")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: RoleQuery) {
         /* const [_, access_token] = req.headers.authorization.split(' ');
         const jwtPayload = this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]); */
-        const data_fixed = await this.rolesService.findAllForSuperadmin();
-        const data_temp = await this.rolesService.findAllForSuperadmin({
+        const data_fixed = await this.rolesService.findAll();
+        const data_temp = await this.rolesService.findAll({
             filter,
             ...query,
         });
@@ -82,12 +86,12 @@ export class RolesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/roles")
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createRoleSchemaForSuperadmin)) createDto: CreateRoleDto) {
         try {
-            const data = await this.rolesService.createForSuperadmin({
+            const data = await this.rolesService.create({
                 ...createDto,
             });
 
@@ -99,12 +103,12 @@ export class RolesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/roles")
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updateRoleSchemaForSuperadmin)) updateDto: UpdateRoleDto) {
         try {
-            const data = await this.rolesService.updateForSuperadmin({
+            const data = await this.rolesService.update({
                 ...updateDto,
             });
 
@@ -115,12 +119,12 @@ export class RolesController {
         }
     }
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
-    @Delete("superadmin/roles/delete")
+    @Roles(Role.ADMIN, Role.GOD)
+    @Delete("superadmin/roles/:id")
     async deleteManyForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
-            const data = await this.rolesService.deleteForSuperadmin({
+            const data = await this.rolesService.delete({
                 id: parseInt(id),
             });
 

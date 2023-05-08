@@ -25,9 +25,10 @@ export class RequiredWalletGuard implements CanActivate {
                 const [_, access_token] = req.headers.authorization?.split(' ');
                 const jwtPayload = this.authService.jwtVerify(access_token);
                 const user = await this.usersService.findById(jwtPayload["id"]);
-                if (!user.payment_wallet_id) {
+                /* if (!user.payment_wallet_id) {
                     throw new CustomException({ error: "The user must register a payment wallet", code: "RPW" }, HttpStatus.PAYMENT_REQUIRED);
                 }
+                return true; */
                 return true;
             }
 

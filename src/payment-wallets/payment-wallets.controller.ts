@@ -15,7 +15,7 @@ import stripe from 'common/instances/stripe.instance';
 export class PaymentWalletsController {
     constructor(private usersService: UsersService, private paymentMethodsService: PaymentWalletsService, private authService: AuthService) { }
 
-    @UseGuards(AuthGuard)
+    /* @UseGuards(AuthGuard)
     @Post("payment-methods")
     async create(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createPaymentMethodSchema)) createDto: CreatePaymentMethodDto,) {
@@ -34,5 +34,5 @@ export class PaymentWalletsController {
         } catch (e) {
             throw e;
         }
-    }
+    } */
 }

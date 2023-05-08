@@ -44,7 +44,7 @@ export class PackagesController {
 
     /* superadmin */
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/packages/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
         const data = await this.packagesService.findByIdForSuperadmin(Number(id));
@@ -55,7 +55,7 @@ export class PackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/packages")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: PackageQuery) {
 
@@ -73,7 +73,7 @@ export class PackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/packages")
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createPackageSchemaForSuperadmin)) createDto: CreatePackageDto) {
@@ -90,7 +90,7 @@ export class PackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/packages")
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updatePackageSchemaForSuperadmin)) updateDto: UpdatePackageDto) {
@@ -107,7 +107,7 @@ export class PackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Delete("superadmin/packages/delete/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {

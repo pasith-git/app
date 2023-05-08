@@ -3,6 +3,11 @@ import { CustomFilter, ManyExceptionsFilter, PrismaFilter } from 'common/filters
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
+import {Prisma} from "@prisma/client";
+
+Prisma.Decimal.prototype.toJSON = function() {
+  return this.toNumber();
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

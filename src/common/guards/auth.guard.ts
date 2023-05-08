@@ -29,7 +29,7 @@ export class AuthGuard implements CanActivate {
                 if (!requiredRoles) {
                     return true;
                 } else {
-                    const roles = (await this.usersService.findById(jwtPayload["id"])).roles.map(data=>data.role.name);
+                    const roles = (await this.usersService.findById(jwtPayload["id"])).roles.map(data => data.role.name);
                     const matchesRoles = requiredRoles.some((role) => roles.includes(role));
                     if (matchesRoles) {
                         return true;
@@ -41,10 +41,10 @@ export class AuthGuard implements CanActivate {
 
             throw new CustomException({ error: "No token provided" }, HttpStatus.UNAUTHORIZED);
         } catch (e) {
-            if (e instanceof JsonWebTokenError) {
-                throw new CustomException({ error: "Token is invalid or expired" }, HttpStatus.UNAUTHORIZED);
+            if(e instanceof CustomException) {
+                throw e;
             }
-            throw e;
+            throw new CustomException({ error: "Unauthorized" }, HttpStatus.UNAUTHORIZED);
         }
     }
 

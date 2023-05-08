@@ -3,25 +3,48 @@ import JoiDate from '@joi/date';
 
 const Joi = JoiCore.extend(JoiDate) as typeof JoiCore;
 
-export const createManyCouponSchema = Joi.array().items({
-    code: Joi.string(),
-    type: Joi.string().valid('percent', 'price'),
-    amount: Joi.number().strict().precision(2).max(99999999.99),
-    expiration_date: Joi.date().format("DD/MM/YYYY").required(),
-    branch_id: Joi.number().strict().required(),
-}).min(1)
+const createCouponSchemaPattern = {
+    code: Joi.string().max(40),
+    discount_type: Joi.string().valid('money', 'percent').required(),
+    discount_amount: Joi.number().strict().precision(2).max(99999999.99).required(),
+    expired_date: Joi.date().format("DD/MM/YYYY").required(),
 
+}
 
-export const updateManyCouponSchema = Joi.array().items({
+const updateCouponSchemaPattern = {
     id: Joi.number().strict().required(),
-    code: Joi.string(),
-    type: Joi.string().valid('percent', 'price'),
-    amount: Joi.number().strict().precision(2).max(99999999.99),
-    expiration_date: Joi.date().format("DD/MM/YYYY"),
-    branch_id: Joi.number().strict(),
-    random_code: Joi.boolean(),
-}).min(1)
+    code: Joi.string().max(40),
+    discount_type: Joi.string().valid('money', 'percent'),
+    discount_amount: Joi.number().strict().precision(2).max(99999999.99),
+    expired_date: Joi.date().format("DD/MM/YYYY"),
+    coupon_status: Joi.string().valid('pending', 'active', 'expired', 'redeemed'),
+    generate_code: Joi.boolean(),
+}
 
-export const deleteManyCouponSchema = Joi.array().items({
+export const createCouponSchema = Joi.object({
+    ...createCouponSchemaPattern,
+})
+
+
+export const updateCouponSchema = Joi.object({
+    ...updateCouponSchemaPattern,
+})
+
+export const deleteCouponSchema = Joi.object({
     id: Joi.number().strict().required(),
-}).min(1)
+})
+
+export const createCouponSchemaForSuperadmin = Joi.object({
+    ...createCouponSchemaPattern,
+    museum_id: Joi.number().strict().required(),
+})
+
+
+export const updateCouponSchemaForSuperadmin = Joi.object({
+    ...updateCouponSchemaPattern,
+    museum_id: Joi.number().strict(),
+})
+
+export const deleteCouponSchemaForSuperadmin = Joi.object({
+    id: Joi.number().strict().required(),
+})

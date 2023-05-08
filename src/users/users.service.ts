@@ -16,6 +16,16 @@ export class UsersService {
         return this.prisma.user.findFirst({
             where: {
                 email
+            },
+            include: {
+                contents: true,
+                country: true,
+                roles: {
+                    include: {
+                        role: true,
+                    }
+                },
+                museum: true,
             }
         })
     }
@@ -24,6 +34,16 @@ export class UsersService {
         return this.prisma.user.findFirst({
             where: {
                 username
+            },
+            include: {
+                contents: true,
+                country: true,
+                roles: {
+                    include: {
+                        role: true,
+                    }
+                },
+                museum: true,
             }
         })
     }
@@ -32,7 +52,13 @@ export class UsersService {
     async findByPhone(phone: string) {
         return this.prisma.user.findFirst({
             where: {
-                phone
+                phone: `+${phone}`
+            },
+            include: {
+                contents: true,
+                country: true,
+                roles: true,
+                museum: true,
             }
         })
     }
@@ -55,21 +81,29 @@ export class UsersService {
                 email: {
                     contains: query?.filter?.email,
                 },
-                is_staff: {
-                    equals: query?.filter?.is_staff !== undefined ? Boolean(query?.filter?.is_staff) : undefined,
+                last_login_at: {
+                    gte: query?.filter?.last_login_at?.start_date && dayjsUtil(query?.filter?.last_login_at?.start_date, "DD/MM/YYYY HH:mm").toDate(),
+                    lt: query?.filter?.last_login_at?.end_date && dayjsUtil(query?.filter?.last_login_at?.end_date, "DD/MM/YYYY HH:mm").toDate(),
                 },
                 created_at: {
-                    gte: query?.filter?.created_at?.start_date,
-                    lt: query?.filter?.created_at?.end_date,
+                    gte: query?.filter?.created_at?.start_date && dayjsUtil(query?.filter?.created_at?.start_date, "DD/MM/YYYY HH:mm").toDate(),
+                    lt: query?.filter?.created_at?.end_date && dayjsUtil(query?.filter?.created_at?.end_date, "DD/MM/YYYY HH:mm").toDate(),
                 },
                 updated_at: {
-                    gte: query?.filter?.updated_at?.start_date,
-                    lt: query?.filter?.updated_at?.end_date
+                    gte: query?.filter?.updated_at?.start_date && dayjsUtil(query?.filter?.updated_at?.start_date, "DD/MM/YYYY HH:mm").toDate(),
+                    lt: query?.filter?.updated_at?.end_date && dayjsUtil(query?.filter?.updated_at?.end_date, "DD/MM/YYYY HH:mm").toDate(),
                 },
                 roles: {
                     every: {
                         role: {
-                            name: query?.filter?.role_name,
+                            ...(query?.filter?.role_name && {
+                                name: query?.filter?.role_name
+                            }),
+                            ...(query?.filter?.role_names?.split(",").length > 0 && {
+                                name: {
+                                    in: query?.filter?.role_names?.split(",")
+                                }
+                            }),
                         }
                     }
                 }
@@ -107,12 +141,10 @@ export class UsersService {
                         role: true,
                     }
                 },
+                contents: true,
                 country: true,
-                district: {
-                    include: {
-                        province: true,
-                    }
-                },
+                museum: true,
+
             }
         });
     }
@@ -135,23 +167,30 @@ export class UsersService {
                         role: true,
                     }
                 },
-                payment_packages: true,
+                contents: true,
+                country: true,
+                museum: true,
 
-            },
+            }
 
         })
     }
 
-    async register({ code, ...registerDto }: RegisterConfirmDto) {
+    async register({ code, country_id, ...registerDto }: RegisterConfirmDto) {
         const roleUser = await this.rolesService.findByName("user");
         return this.prisma.user.create({
             data: {
                 ...registerDto,
+                country: {
+                    connect: {
+                        id: country_id
+                    }
+                },
                 phone: `+${registerDto.phone}`,
-                password: await this.authService.generatePassword(registerDto.password),
+                password: this.authService.generatePassword(registerDto.password),
                 /* birth_date: dayjsUtil(registerDto.birth_date).toDate(), */
                 is_active: true,
-                is_staff: false,
+                is_deleted: false,
                 roles: {
                     create: {
                         role: {
@@ -163,7 +202,15 @@ export class UsersService {
                 }
             },
             include: {
-                roles: true,
+                roles: {
+                    include: {
+                        role: true,
+                    }
+                },
+                contents: true,
+                country: true,
+                museum: true,
+
             }
 
 
@@ -171,7 +218,7 @@ export class UsersService {
     }
 
     async findById(id: number) {
-        return this.prisma.user.findFirstOrThrow({
+        return this.prisma.user.findFirst({
             where: {
                 id,
             },
@@ -181,25 +228,34 @@ export class UsersService {
                         role: true,
                     }
                 },
-                payment_packages: {
-                    include: {
-                        package: true,
-                    }
-                },
+                contents: true,
                 country: true,
-                district: {
-                    include: {
-                        province: true,
-                    }
-                },
-            },
+                museum: true,
+
+            }
         })
     }
 
-    async create({ role_ids, ...createDto }: CreateUserDto) {
+    async create({ role_ids, country_id, museum_id, ...createDto }: CreateUserDto) {
         return this.prisma.user.create({
             data: {
                 ...createDto,
+                ...(createDto.phone && {
+                    phone: `+${createDto.phone}`,
+                }),
+                password: this.authService.generatePassword(createDto.password),
+                country: {
+                    connect: {
+                        id: country_id,
+                    }
+                },
+                ...(museum_id && {
+                    museum: {
+                        connect: {
+                            id: museum_id
+                        }
+                    },
+                }),
                 roles: {
                     createMany: {
                         data: role_ids.map(role_id => {
@@ -220,13 +276,17 @@ export class UsersService {
         })
     }
 
-    async update({ role_ids, id, delete_image, ...updateDto }: UpdateUserDto) {
+    async update({ role_ids, id, delete_image, country_id, museum_id, ...updateDto }: UpdateUserDto) {
         return this.prisma.user.update({
             where: {
                 id,
             },
             data: {
                 ...updateDto,
+                ...(updateDto.phone && {
+                    phone: `+${updateDto.phone}`,
+                }),
+                password: updateDto.password && this.authService.generatePassword(updateDto.password),
                 ...(role_ids?.length > 0 && {
                     roles: {
                         deleteMany: {
@@ -240,6 +300,21 @@ export class UsersService {
                             })
                         }
                     },
+                }),
+
+                ...(country_id && {
+                    country: {
+                        connect: {
+                            id: country_id
+                        }
+                    },
+                }),
+                ...(museum_id && {
+                    museum: {
+                        connect: {
+                            id: museum_id
+                        }
+                    },
                 })
             },
             include: {
@@ -248,12 +323,10 @@ export class UsersService {
                         role: true,
                     }
                 },
+                contents: true,
                 country: true,
-                district: {
-                    include: {
-                        province: true,
-                    }
-                },
+                museum: true,
+
             }
         })
     }
@@ -269,211 +342,14 @@ export class UsersService {
                         role: true,
                     }
                 },
-            }
-        });
-    }
-
-    /* superadmin */
-
-
-    async findAllForSuperadmin(museum_id_query?: number, query?: UserQuery) {
-        return this.prisma.user.findMany({
-            where: {
-                museum_id: {
-                    equals: museum_id_query,
-                },
-                first_name: {
-                    contains: query?.filter?.first_name,
-                },
-                last_name: {
-                    contains: query?.filter?.last_name,
-                },
-                username: {
-                    contains: query?.filter?.username,
-                },
-                email: {
-                    contains: query?.filter?.email,
-                },
-                is_staff: {
-                    equals: query?.filter?.is_staff !== undefined ? Boolean(query?.filter?.is_staff) : undefined,
-                },
-                created_at: {
-                    gte: query?.filter?.created_at?.start_date,
-                    lt: query?.filter?.created_at?.end_date,
-                },
-                updated_at: {
-                    gte: query?.filter?.updated_at?.start_date,
-                    lt: query?.filter?.updated_at?.end_date
-                },
-                roles: {
-                    every: {
-                        role: {
-                            name: query?.filter?.role_name,
-                        }
-                    }
-                }
-
-            },
-            orderBy: {
-                ...(query?.sort?.first_name && {
-                    first_name: query.sort.first_name
-                }),
-                ...(query?.sort?.last_name && {
-                    last_name: query.sort.last_name
-                }),
-                ...(query?.sort?.username && {
-                    username: query.sort.username
-                }),
-                ...(query?.sort?.email && {
-                    username: query.sort.email
-                }),
-                ...(query?.sort?.created_at && {
-                    created_at: query.sort.created_at
-                }),
-                ...(query?.sort?.updated_at && {
-                    updated_at: query.sort.updated_at
-                }),
-            },
-            ...(query?.limit && {
-                take: parseInt(query.limit),
-            }),
-            ...(query?.offset && {
-                skip: parseInt(query.offset),
-            }),
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
+                contents: true,
                 country: true,
-                district: {
-                    include: {
-                        province: true,
-                    }
-                },
+                museum: true,
+
             }
         });
     }
 
-    async findByIdForSuperadmin(id: number) {
-        return this.prisma.user.findFirstOrThrow({
-            where: {
-                id,
-            },
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
-                payment_packages: true,
-            },
-        })
-    }
-
-    async findByUsernameOrEmailForSuperadmin({ username, email }: { username?: string, email?: string }) {
-        return this.prisma.user.findFirstOrThrow({
-            where: {
-                OR: [
-                    {
-                        username,
-                    },
-                    {
-                        email
-                    }
-                ]
-            },
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
-                payment_packages: true,
-            },
-
-        })
-    }
-
-
-    async createForSuperadmin({ role_ids, ...createDto }: CreateUserDto
-    ) {
-        return this.prisma.user.create({
-            data: {
-                ...createDto,
-                phone: `+${createDto.phone}`,
-                password: this.authService.generatePassword(createDto.password),
-                /* birth_date: dayjsUtil(createDto.birth_date, "DD/MM/YYYY").utc(true).toDate(), */
-                roles: {
-                    createMany: {
-                        data: role_ids.map(role_id => {
-                            return {
-                                role_id,
-                            }
-                        })
-                    }
-                }
-            },
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
-            }
-        })
-    }
-
-    async updateForSuperadmin({ role_ids, id, delete_image, ...updateDto }: UpdateUserDto) {
-        return this.prisma.user.update({
-            where: {
-                id,
-            },
-            data: {
-                ...updateDto,
-                ...(updateDto.phone && { phone: `+${updateDto.phone}` }),
-                ...(updateDto.password && { password: this.authService.generatePassword(updateDto.password) }),
-                /* ...(updateDto.birth_date && { birth_date: dayjsUtil(updateDto.birth_date, "DD/MM/YYYY").utc(true).toDate() }), */
-                ...(role_ids?.length > 0 && {
-                    roles: {
-                        deleteMany: {
-                            user_id: id,
-                        },
-                        createMany: {
-                            data: role_ids.map(role_id => {
-                                return {
-                                    role_id,
-                                }
-                            })
-                        }
-                    },
-                })
-            },
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
-            }
-        })
-    }
-
-    async deleteForSuperadmin({ id }: DeleteUserDto) {
-        return this.prisma.user.delete({
-            where: {
-                id,
-            },
-            include: {
-                roles: {
-                    include: {
-                        role: true,
-                    }
-                },
-            }
-        });
-    }
 }
 
 

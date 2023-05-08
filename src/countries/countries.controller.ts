@@ -19,7 +19,6 @@ import { CountriesService } from './countries.service';
 
 const PREFIX = 'countries';
 
-
 @Controller('')
 export class CountriesController {
     constructor(private prisma: PrismaService, private countriesService: CountriesService) { }
@@ -52,10 +51,10 @@ export class CountriesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/countries/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param('id') id: string) {
-        const data = await this.countriesService.findByIdForSuperadmin(parseInt(id));
+        const data = await this.countriesService.findById(parseInt(id));
         return res.json(responseUtil({
             req,
             body: data,
@@ -63,14 +62,14 @@ export class CountriesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/countries")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: CountryQuery) {
         /* const [_, access_token] = req.headers.authorization.split(' ');
         const jwtPayload = this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]); */
-        const data_fixed = await this.countriesService.findAllForSuperadmin();
-        const data_temp = await this.countriesService.findAllForSuperadmin({
+        const data_fixed = await this.countriesService.findAll();
+        const data_temp = await this.countriesService.findAll({
             filter,
             ...query,
         });
@@ -83,17 +82,17 @@ export class CountriesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/countries")
-    @UseInterceptors(FilesInterceptor("file"))
+    @UseInterceptors(FileInterceptor("flag_image_file"))
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new FormDataValidationPipe(createCountrySchemaForSuperadmin)) createDto: CreateCountryDto,
-        @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
+        @UploadedFile(new FileValidationPipe()) flag_image_file: Express.Multer.File) {
         try {
-            const createFile = createfileGenerator(file, PREFIX, createDto.name);
-            const data = await this.countriesService.createForSuperadmin({
+            const createFile = createfileGenerator(flag_image_file, PREFIX, createDto.name);
+            const data = await this.countriesService.create({
                 ...createDto,
-                image_path: createFile?.filePath,
+                flag_image_path: createFile?.filePath,
             });
             await createFile?.generate();
 
@@ -105,20 +104,20 @@ export class CountriesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/countries")
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('flag_image_file'))
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new FormDataValidationPipe(updateCountrySchemaForSuperadmin)) updateDto: UpdateCountryDto,
-        @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
+        @UploadedFile(new FileValidationPipe()) flag_image_file: Express.Multer.File) {
         try {
-            const dataById = await this.countriesService.findByIdForSuperadmin(updateDto.id);
-            const updateFile = updatefileGenerator(file, PREFIX, dataById.name, updateDto.name || dataById.name, dataById.image_path, updateDto.delete_image);
-            const data = await this.countriesService.updateForSuperadmin({
+            const dataById = await this.countriesService.findById(updateDto.id);
+            const updateFile = updatefileGenerator(flag_image_file, PREFIX, dataById.name, updateDto.name || dataById.name, dataById.flag_image_path, updateDto.delete_image);
+            const data = await this.countriesService.update({
                 ...updateDto,
-                image_path: updateFile?.filePath,
+                flag_image_path: updateFile?.filePath,
             });
-            await updateFile.generate();
+            await updateFile?.generate();
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.updated, body: data }));
 
@@ -129,14 +128,14 @@ export class CountriesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
-    @Delete("superadmin/countries/delete/:id")
+    @Roles(Role.ADMIN, Role.GOD)
+    @Delete("superadmin/countries/:id")
     async deleteMany(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
-            const dataById = await this.countriesService.findByIdForSuperadmin(parseInt(id));
-            const deleteFile = deleteFileGenerator(dataById.image_path);
-            const data = await this.countriesService.deleteForSuperadmin({
+            const dataById = await this.countriesService.findById(parseInt(id));
+            const deleteFile = deleteFileGenerator(dataById.flag_image_path);
+            const data = await this.countriesService.delete({
                 id: dataById.id,
             });
             await deleteFile?.generate();

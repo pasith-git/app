@@ -7,6 +7,11 @@ import { OAuth2Client } from 'google-auth-library';
 export class TestController {
     constructor(private googleService: GoogleService) { }
 
+    @Get("2")
+    async test2(@Req() req: Request, @Res() res: Response) {
+
+    }
+
     @Get("")
     async test(@Req() req: Request, @Res() res: Response) {
         try {
@@ -34,4 +39,6 @@ export class TestController {
         }
 
     }
+
+    
 }

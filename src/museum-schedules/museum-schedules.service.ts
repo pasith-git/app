@@ -119,7 +119,11 @@ export class MuseumSchedulesService {
 
     async create(createDto: CreateMuseumScheduleDto) {
         return this.prisma.museumSchedule.create({
-            data: createDto
+            data: createDto,
+            include: {
+                schedule_time: true,
+                museum: true,
+            }
         })
     }
 
@@ -130,6 +134,10 @@ export class MuseumSchedulesService {
             },
             data: {
                 ...updateDto,
+            },
+            include: {
+                schedule_time: true,
+                museum: true,
             }
         })
     }
@@ -139,6 +147,10 @@ export class MuseumSchedulesService {
         return this.prisma.museumSchedule.delete({
             where: {
                 id
+            },
+            include: {
+                schedule_time: true,
+                museum: true,
             }
         })
     }

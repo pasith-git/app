@@ -23,10 +23,10 @@ export class PackageGuard implements CanActivate {
                 const user = await this.usersService.findById(jwtPayload["id"]);
                 const roles = (await this.usersService.findById(jwtPayload["id"])).roles.map(data => data.role.name);
                 const matchesRoles = ["superadmin"].some((role) => roles.includes(role));
-                const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date) && payment_package.status === "success");
+                /* const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date) && payment_package.status === "success");
                 if (!isPaid && !matchesRoles) {
                     throw new CustomException({ error: "Users are required to pay for packages before utilizing the system", code: "UP" }, HttpStatus.PAYMENT_REQUIRED);
-                }
+                } */
                 return true;
             }
 

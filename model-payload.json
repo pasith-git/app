@@ -23,16 +23,11 @@ Create Users
     "last_name": "vongnorkeo",
     "password": "PthusingMA4153",
     "gender": "male",
-    "birth_date": "15/04/1999",
-    "village": "xiengyuen",
-    "district_id": 24,
     "country_id": 1724,
     "phone": "1111",
     "role_ids": [
-        1
+        2
     ],
-    "is_staff": true,
-    "is_active": true,
 }
 
 
@@ -66,14 +61,21 @@ role
     }
 ]
 
+
+
 museum 
 
-[
-    {
-        "name": "ready for test"
-    }
-]
-
+{
+    "id": 6,
+    "phone": "1111",
+    "open_time": "10:00",
+    "close_time": "12:00",
+    "close_day_of_week": ["sunday", "saturday"],
+    "address": "tet",
+    "vat_percentage": 3,
+    "vat_pay_type": "museum",
+    "is_deleted": false
+}
 coupon
 
 [
@@ -189,14 +191,12 @@ login
     "password": "PthusingMA4153"
 }
 
-booking-schedule
-
 {
-    "title": "test",
-    "start_date": "13/02/2023 10:33",
-    "end_date": "13/02/2023 12:33",
-    "user_limit": 10,
-    "price": 10
+    "title": "morning",
+    "start_time": "10:00",
+    "end_time": "12:00",
+    "user_limit": 20,
+    "museum_id": 6
 }
 
 payment-museum-schedules

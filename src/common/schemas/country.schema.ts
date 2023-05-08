@@ -23,6 +23,7 @@ export const createCountrySchemaForSuperadmin = Joi.object({
 
 export const updateCountrySchemaForSuperadmin = Joi.object({
     ...updateCountrySchemaPattern,
+    delete_image: Joi.boolean(),
 })
 
 export const deleteCountrySchemaForSuperadmin = Joi.object({

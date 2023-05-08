@@ -13,6 +13,34 @@ enum Gender {
   lgbtq
 }
 
+enum BookingStatus {
+  pending
+  active
+  completed
+}
+
+enum PaymentWay {
+  booking
+  walkin
+}
+
+enum CouponStatus {
+  pending
+  active
+  expired
+  redeemed
+}
+
+enum DiscountType {
+  money
+  percent
+}
+
+enum VatPayType {
+  customer
+  museum
+}
+
 enum CouponType {
   percent
   price
@@ -22,6 +50,11 @@ enum Status {
   pending
   success
   failure
+}
+
+enum AgeGroup {
+  child
+  adult
 }
 
 enum ScheduleStatus {
@@ -40,14 +73,18 @@ enum PaymentType {
   cash
 }
 
+enum BookType {
+  booking
+  walkin
+}
+
 model Country {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique @db.VarChar(70)
-  image_path String?  @unique
-  num_code   String?  @db.VarChar(20)
-  locale     String   @unique @db.VarChar(10)
-  users      User[]
-  museums    Museum[]
+  id              Int     @id @default(autoincrement())
+  name            String  @unique @db.VarChar(70)
+  flag_image_path String? @unique
+  num_code        String? @db.VarChar(20)
+  locale          String  @unique @db.VarChar(10)
+  users           User[]
 
   @@map("countries")
 }
@@ -66,57 +103,63 @@ model District {
   province_id Int
 
   province Province @relation(fields: [province_id], references: [id], onUpdate: Cascade)
-  museums  Museum[]
 
   @@map("districts")
 }
 
 model Museum {
-  id                Int      @id @default(autoincrement())
-  name              String   @db.VarChar(70)
-  email             String?  @unique
-  phone             String?  @unique @db.VarChar(25)
-  logo              String?  @unique
-  country_id        Int
-  district_id       Int?
-  stripe_account_id String?  @unique
-  website           String?  @unique
-  info              String?  @db.Text
-  description       String?  @db.Text
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id                Int        @id @default(autoincrement())
+  name              String     @db.VarChar(70)
+  email             String?    @unique
+  phone             String     @unique @db.VarChar(15)
+  logo_image_path   String?    @unique
+  open_time         DateTime?  @db.Time
+  close_time        DateTime?  @db.Time
+  close_day_of_week String?
+  vat_percentage    Int        @db.TinyInt
+  vat_pay_type      VatPayType
+  vat_auth_date     DateTime?  @db.Date
+  vat_auth_code     String?
+  latitude          Decimal?   @db.Decimal(8, 6)
+  longitude         Decimal?   @db.Decimal(9, 6)
+  website           String?    @unique
+  address           String     @db.Text
+  is_deleted        Boolean
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
 
-  country                   Country                 @relation(fields: [country_id], references: [id])
-  district                  District?               @relation(fields: [district_id], references: [id])
-  users                     User[]
-  payment_packages          PaymentPackage[]
-  museum_gallery_categories MuseumGalleryCategory[]
-  museum_schedules          MuseumSchedule[]
-  museum_schedule_payments  MuseumSchedulePayment[]
-  schedule_times            ScheduleTime[]
+  users                    User[]
+  payment_packages         PaymentPackage[]
+  galleries                Gallery[]
+  museum_schedules         MuseumSchedule[]
+  museum_schedule_payments MuseumSchedulePayment[]
+  schedule_times           ScheduleTime[]
+  contents                 Content[]
+  bookings                 Booking[]
+  coupons                  Coupon[]
+  prices                   Price[]
+  banks                    Bank[]
 
   @@map("museums")
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  email             String    @unique
-  username          String    @unique @db.VarChar(40)
-  first_name        String    @db.VarChar(70)
-  last_name         String    @db.VarChar(70)
-  gender            Gender
-  phone             String    @unique @db.VarChar(25)
-  is_staff          Boolean
-  is_active         Boolean
-  password          String    @unique
-  museum_id         Int?
-  country_id        Int
-  payment_wallet_id Int?      @unique
-  village           String    @db.VarChar(70)
-  image_path        String?   @unique
-  last_login        DateTime?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  username           String    @unique @db.VarChar(50)
+  first_name         String    @db.VarChar(70)
+  last_name          String    @db.VarChar(70)
+  gender             Gender
+  phone              String    @unique @db.VarChar(15)
+  is_active          Boolean
+  password           String    @unique
+  museum_id          Int?
+  country_id         Int
+  profile_image_path String?   @unique
+  last_login_at      DateTime?
+  is_deleted         Boolean
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
   country                           Country                 @relation(fields: [country_id], references: [id])
   museum                            Museum?                 @relation(fields: [museum_id], references: [id])
@@ -124,14 +167,19 @@ model User {
   payment_packages                  PaymentPackage[]
   user_museum_schedule_payments     MuseumSchedulePayment[] @relation("user")
   employee_museum_schedule_payments MuseumSchedulePayment[] @relation("employee")
+  contents                          Content[]
+  galleries                         Gallery[]
+  payments                          Payment[]
+  bookings                          Booking[]
 
   @@map("users")
 }
 
 model Role {
-  id    Int        @id @default(autoincrement())
-  name  String     @unique @db.VarChar(40)
-  users UserRole[]
+  id      Int        @id @default(autoincrement())
+  name    String     @unique @db.VarChar(40)
+  display String     @unique @db.VarChar(50)
+  users   UserRole[]
 
   @@map("roles")
 }
@@ -171,15 +219,20 @@ model MuseumSchedule {
 }
 
 model ScheduleTime {
-  id               Int              @id @default(autoincrement())
-  title            String           @db.Char(70)
-  start_time       DateTime         @db.Time()
-  end_time         DateTime         @db.Time()
-  museum_id        Int
+  id             Int      @id @default(autoincrement())
+  title          String   @db.Char(70)
+  start_time     DateTime @db.Time()
+  end_time       DateTime @db.Time()
+  capacity_limit Int      @db.Int
+  museum_id      Int
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
   museum_schedules MuseumSchedule[]
   museum           Museum           @relation(fields: [museum_id], references: [id])
+  bookings         Booking[]
 
-  @@unique(fields: [title, start_time, end_time, museum_id], name: "uniq_1")
+  @@unique(fields: [title, start_time, end_time, museum_id, capacity_limit], name: "uniq_1")
   @@map("schedule_times")
 }
 
@@ -198,7 +251,7 @@ model MuseumSchedulePayment {
   payment_bank_bill_number String?
   payment_bank_bill_phone  String?                       @db.VarChar(20)
   reference_number         String?
-  bank_percentage          Int?
+  bank_percentage          Int?                          @db.TinyInt
   bank_percent_amount      Decimal?                      @db.Decimal(10, 2)
   image_path               String?
   info                     String?                       @db.Text
@@ -273,27 +326,211 @@ model PaymentPackage {
   @@map("payment_packages")
 }
 
-model MuseumGalleryCategory {
-  id        Int    @id @default(autoincrement())
-  name      String @db.VarChar(70)
-  museum_id Int
+model Gallery {
+  id          Int     @id @default(autoincrement())
+  title       String  @db.VarChar(70)
+  description String? @db.Text
+  museum_id   Int
+  author_id   Int
 
-  museum           Museum          @relation(fields: [museum_id], references: [id], onDelete: Cascade)
-  museum_galleries MuseumGallery[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@unique(fields: [name, museum_id], name: "uniq_1")
-  @@map("museum_gallery_categories")
+  museum          Museum          @relation(fields: [museum_id], references: [id])
+  author          User            @relation(fields: [author_id], references: [id])
+  gallery_details GalleryDetail[]
+
+  @@map("galleries")
 }
 
-model MuseumGallery {
-  id                         Int     @id @default(autoincrement())
-  title                      String  @db.VarChar(70)
-  museum_gallery_category_id Int
-  image_path                 String
-  description                String? @db.Text
+model GalleryDetail {
+  id                 Int     @id @default(autoincrement())
+  title              String? @db.VarChar(70)
+  gallery_id         Int
+  gallery_image_path String  @unique
 
-  museum_gallery_category MuseumGalleryCategory @relation(fields: [museum_gallery_category_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@unique(fields: [title, museum_gallery_category_id], name: "uniq_1")
-  @@map("museum_galleries")
+  gallery Gallery @relation(fields: [gallery_id], references: [id], onDelete: Cascade)
+
+  @@map("gallery_details")
+}
+
+model Content {
+  id                      Int      @id @default(autoincrement())
+  title                   String   @db.VarChar(70)
+  description             String   @db.Text
+  museum_id               Int
+  author_id               Int
+  main_content_image_path String?  @unique
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  museum Museum  @relation(fields: [museum_id], references: [id], onDelete: Restrict)
+  author User    @relation(fields: [author_id], references: [id], onDelete: Restrict)
+  photos Photo[]
+
+  @@unique(fields: [title, museum_id], name: "uniq_1")
+  @@map("contents")
+}
+
+model Photo {
+  id         Int     @id @default(autoincrement())
+  title      String? @db.VarChar(70)
+  content_id Int
+  path       String? @unique
+  content    Content @relation(fields: [content_id], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model Price {
+  id           Int      @id @default(autoincrement())
+  title        String   @db.VarChar(70)
+  museum_id    Int
+  is_foreigner Boolean
+  adult_price  Decimal  @db.Decimal(10, 2)
+  child_price  Decimal  @db.Decimal(10, 2)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  museum Museum @relation(fields: [museum_id], references: [id], onDelete: Restrict)
+
+  @@unique(fields: [is_foreigner, museum_id], name: "uniq_1")
+  @@unique(fields: [title, museum_id], name: "uniq_2")
+  @@map("prices")
+}
+
+model Booking {
+  id                  Int           @id @default(autoincrement())
+  museum_id           Int
+  user_id             Int?
+  booked_at           DateTime
+  way                 PaymentWay
+  type                PaymentType
+  is_foreigner        Boolean
+  total               Decimal       @db.Decimal(10, 2)
+  total_with_discount Decimal?      @db.Decimal(10, 2)
+  total_pay           Decimal?      @db.Decimal(10, 2)
+  total_charge        Decimal?      @db.Decimal(10, 2)
+  paid_at             DateTime?
+  status              Status
+  vat_percentage      Int           @default(0)
+  vat_amount          Int           @default(0)
+  number_of_adult     Int           @default(0)
+  number_of_child     Int           @default(0)
+  adult_total         Decimal       @default(0) @db.Decimal(10, 2)
+  child_total         Decimal       @default(0) @db.Decimal(10, 2)
+  discount_type       DiscountType?
+  discount_amount     Decimal?      @db.Decimal(10, 2)
+  schedule_time_str   String
+  schedule_date       DateTime      @db.Date
+  schedule_time_id    Int
+  people_amount       Int
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+
+  museum        Museum       @relation(fields: [museum_id], references: [id], onDelete: Restrict)
+  schedule_time ScheduleTime @relation(fields: [schedule_time_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user          User?        @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payments      Payment[]
+  tickets       Ticket[]
+
+  @@map("bookings")
+}
+
+model Coupon {
+  id              Int          @id @default(autoincrement())
+  museum_id       Int
+  code            String       @db.VarChar(40)
+  discount_type   DiscountType
+  discount_amount Decimal      @db.Decimal(10, 2)
+  expired_date    DateTime     @db.Date
+  coupon_status   CouponStatus
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  museum          Museum       @relation(fields: [museum_id], references: [id], onDelete: Restrict)
+
+  @@unique(fields: [code, museum_id], name: "uniq_1")
+}
+
+model Payment {
+  id                     Int           @id @default(autoincrement())
+  booking_id             Int
+  user_id                Int?
+  transaction_id         String        @unique
+  confirmed_image_path   String?       @unique
+  way                    PaymentWay
+  type                   PaymentType
+  is_foreigner           Boolean
+  total                  Decimal       @db.Decimal(10, 2)
+  total_with_discount    Decimal?      @db.Decimal(10, 2)
+  total_pay              Decimal?      @db.Decimal(10, 2)
+  total_charge           Decimal?      @db.Decimal(10, 2)
+  paid_at                DateTime?
+  booked_at              DateTime
+  status                 Status
+  number_of_adult        Int           @default(0)
+  number_of_child        Int           @default(0)
+  adult_total            Decimal       @default(0) @db.Decimal(10, 2)
+  child_total            Decimal       @default(0) @db.Decimal(10, 2)
+  discount_type          DiscountType?
+  discount_amount        Decimal?      @db.Decimal(10, 2)
+  discount_total         Decimal?      @db.Decimal(10, 2)
+  bank_reference_code    String?       @db.VarChar(70)
+  bank_bill_number       String?       @db.VarChar(70)
+  bank_bill_name         String?       @db.VarChar(70)
+  bank_bill_phone        String?       @db.VarChar(70)
+  bank_percentage        Decimal?      @db.Decimal(10, 2)
+  bank_percentage_amount Decimal?      @db.Decimal(10, 2)
+  created_at             DateTime      @default(now())
+  updated_at             DateTime      @updatedAt
+
+  booking         Booking         @relation(fields: [booking_id], references: [id], onDelete: Restrict)
+  user            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  payment_details PaymentDetail[]
+
+  @@map("payments")
+}
+
+model PaymentDetail {
+  id            Int       @id @default(autoincrement())
+  payment_id    Int
+  booking_code  String
+  is_printed    Boolean
+  is_checked_in Boolean
+  checked_at    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
+
+  @@map("payment_details")
+}
+
+model Ticket {
+  id            Int       @id @default(autoincrement())
+  booking_id    Int
+  booking_code  String
+  is_printed    Boolean
+  is_checked_in Boolean
+  checked_at    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  @@map("tickets")
+}
+
+model Bank {
+  id                Int    @id @default(autoincrement())
+  name              String @db.VarChar(70)
+  qrcode_image_path String @unique
+  museum_id         Int
+  museum            Museum @relation(fields: [museum_id], references: [id], onDelete: Cascade)
+
+  @@unique(fields: [name, museum_id], name: "uniq_1")
+  @@map("banks")
 }

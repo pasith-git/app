@@ -1,5 +1,6 @@
 export interface CreateRoleDto {
     name: string
+    display: string
 }
 
 export interface UpdateRoleDto extends Partial<CreateRoleDto> {

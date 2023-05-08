@@ -17,8 +17,7 @@ import { PaymentPackageModule } from './payment-packages/payment-packages.module
 import { MuseumsModule } from './museums/museums.module';
 import { TwilioModule } from './twilio/twilio.module';
 import { MuseumSchedulesModule } from './museum-schedules/museum-schedules.module';
-import { MuseumGalleryCategoriesModule } from './museum-gallery-categories/museum-gallery-categories.module';
-import { MuseumGalleriesModule } from './museum-galleries/museum-galleries.module';
+import { GalleriesModule } from './galleries/galleries.module';
 import { BcelModule } from './bcel/bcel.module';
 import { MuseumSchedulePaymentsModule } from './museum-schedule-payments/museum-schedule-payments.module';
 import { SharedModule } from './shared/shared.module';
@@ -28,6 +27,17 @@ import { ScheduleTimesModule } from './schedule-times/schedule-times.module';
 import { GoogleModule } from './google/google.module';
 import { TestModule } from './test/test.module';
 import { PaymentWalletsModule } from './payment-wallets/payment-wallets.module';
+import { GalleryDetailsModule } from './gallery-details/gallery-details.module';
+import { ContentsModule } from './contents/contents.module';
+import { PhotosModule } from './photos/photos.module';
+import { PricesModule } from './prices/prices.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { PaymentsModule } from './payments/payments.module';
+import { PaymentDetailsModule } from './payment-details/payment-details.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { ReportsModule } from './reports/reports.module';
+import { BanksModule } from './banks/banks.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -56,8 +66,7 @@ import { PaymentWalletsModule } from './payment-wallets/payment-wallets.module';
     MuseumsModule,
     TwilioModule,
     MuseumSchedulesModule,
-    MuseumGalleryCategoriesModule,
-    MuseumGalleriesModule,
+    GalleriesModule,
     BcelModule,
     MuseumSchedulePaymentsModule,
     SharedModule,
@@ -66,6 +75,17 @@ import { PaymentWalletsModule } from './payment-wallets/payment-wallets.module';
     GoogleModule,
     TestModule,
     PaymentWalletsModule,
+    GalleryDetailsModule,
+    ContentsModule,
+    PhotosModule,
+    PricesModule,
+    CouponsModule,
+    BookingsModule,
+    PaymentsModule,
+    PaymentDetailsModule,
+    TicketsModule,
+    ReportsModule,
+    BanksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

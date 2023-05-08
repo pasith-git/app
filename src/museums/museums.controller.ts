@@ -7,11 +7,11 @@ import { MuseumsService } from './museums.service';
 import responseUtil from 'common/utils/response.util';
 import { Roles } from 'common/decorators/role.decorator';
 import Role from 'common/enums/role.enum';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { connectStripeToMuseumSchema, createFirstTimeMuseumSchema, createMuseumSchemaForSuperadmin, deleteMuseumSchemaForSuperadmin, updateMuseumSchema } from 'common/schemas/museum.schema';
-import { ConnectStripeToMuseumDto, CreateMuseumDto, DeleteMuseumDto, UpdateMuseumDto } from 'common/dtos/museum.dto';
+import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { createFirstTimeMuseumSchema, createMuseumSchemaForSuperadmin, createMuseumWithOwnerSchemaForSuperadmin, deleteMuseumSchemaForSuperadmin, updateMuseumSchema, updateMuseumSchemaForSuperadmin } from 'common/schemas/museum.schema';
+import { ConnectStripeToMuseumDto, CreateMuseumDto, CreateMuseumWithOwnerDto, DeleteMuseumDto, UpdateMuseumDto } from 'common/dtos/museum.dto';
 import { FormDataValidationPipe } from 'common/pipes/form-data-validation.pipe';
-import { FilesValidationPipe, FileValidationPipe } from 'common/pipes/file-validation.pipe';
+import { FileFieldValidationPipe, FilesValidationPipe, FileValidationPipe } from 'common/pipes/file-validation.pipe';
 import { createfileGenerator, deleteFileGenerator, updatefileGenerator } from 'common/utils/image-processor.util';
 import dayjsUtil from 'common/utils/dayjs.util';
 import MESSAGE from 'common/utils/message.util';
@@ -23,6 +23,7 @@ import stripe from 'common/instances/stripe.instance';
 import { CountriesService } from 'countries/countries.service';
 import { CustomException } from 'common/exceptions/custom.exception';
 import { PaymentWalletsService } from 'payment-wallets/payment-wallets.service';
+import { checkTimeStartAndEnd, checkTimeStartOrEnd } from 'common/utils/datetime.util';
 
 const PREFIX = 'museums';
 
@@ -38,8 +39,8 @@ export class MuseumsController {
         const jwtPayload = await this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
         const q_museum_id = museum_id ? Number(museum_id) : undefined;
-        const data_fixed = await this.museumsService.findAll(q_museum_id);
-        const data_temp = await this.museumsService.findAll(q_museum_id, {
+        const data_fixed = await this.museumsService.findAllForNormal(q_museum_id);
+        const data_temp = await this.museumsService.findAllForNormal(q_museum_id, {
             filter,
             ...query,
         });
@@ -61,7 +62,7 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER, Role.CASHIER)
     @Get("admin/museums/:id")
     async findByIdForAdmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
         const [_, access_token] = req.headers.authorization.split(' ');
@@ -75,7 +76,7 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER, Role.CASHIER)
     @Get("admin/museums")
     async findAllByMuseumIdForAdmin(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: MuseumQuery) {
         const [_, access_token] = req.headers.authorization?.split(' ');
@@ -95,20 +96,34 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Put("admin/museums")
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('logo_image_file'))
     async updateForAdmin(@Req() req: Request, @Res() res: Response,
         @Body(new FormDataValidationPipe(updateMuseumSchema)) updateDto: UpdateMuseumDto,
-        @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
+        @UploadedFile(new FileValidationPipe()) logo_image_file: Express.Multer.File) {
         try {
             const museum = await this.museumsService.findById(updateDto.id);
-            const updateFile = updatefileGenerator(file, PREFIX, museum.name, updateDto.name || museum.name, museum.logo, updateDto.delete_image);
+
+            let openCloseTime;
+
+            openCloseTime = checkTimeStartOrEnd({
+                input: updateDto.open_time,
+                value: museum.open_time,
+            },
+                {
+                    input: updateDto.close_time,
+                    value: museum.close_time,
+                }
+            )
+
+            const updateFile = updatefileGenerator(logo_image_file, PREFIX, museum.name, updateDto.name || museum.name, museum.logo_image_path, updateDto.delete_image);
 
             const data = await this.museumsService.update({
                 ...updateDto,
-                ...(updateDto.phone && { phone: `+${updateDto.phone}` }),
-                logo: updateFile?.filePath,
+                logo_image_path: updateFile?.filePath,
+                open_time: openCloseTime?.start_time,
+                close_time: openCloseTime?.end_time,
             });
             await updateFile?.generate();
 
@@ -120,104 +135,48 @@ export class MuseumsController {
 
     }
 
-    @UseGuards(AuthGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    /* @UseGuards(AuthGuard)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Post("admin/museums/first-time")
-    @UseInterceptors(FileInterceptor("file"))
+    @UseInterceptors(FileInterceptor("logo_image_file"))
     async createForFirstTimeUse(@Req() req: Request, @Res() res: Response,
-        @Body(new FormDataValidationPipe(createFirstTimeMuseumSchema)) createMuseumDto: CreateMuseumDto,
-        @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
+        @Body(new FormDataValidationPipe(createFirstTimeMuseumSchema)) createDto: CreateMuseumDto,
+        @UploadedFile(new FileValidationPipe()) logo_image_file: Express.Multer.File) {
         const [_, access_token] = req.headers.authorization?.split(' ');
         const jwtPayload = this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
 
-        const createFile = createfileGenerator(file, PREFIX, createMuseumDto.name);
-        const museum = await this.museumsService.create({
-            ...createMuseumDto,
-            ...(createMuseumDto.phone && { phone: `+${createMuseumDto.phone}` }),
-            logo: createFile?.filePath,
+        let openCloseTime;
+
+        if (createDto.open_time && createDto.close_time) {
+            openCloseTime = checkTimeStartAndEnd(createDto.open_time, createDto.close_time)
+        }
+
+        const createFile = createfileGenerator(logo_image_file, PREFIX, createDto.name);
+        const data = await this.museumsService.create({
+            ...createDto,
+            logo_image_path: createFile?.filePath,
+            open_time: openCloseTime?.start_time,
+            close_time: openCloseTime?.end_time,
+            is_deleted: false,
         });
 
         await this.usersService.update({
             id: user.id,
-            museum_id: museum.id,
+            museum_id: data.id,
         });
 
-        /* const stripeAccount = await stripe.accounts.create({
-            type: "standard",
-            country: country.locale,
-            default_currency: "lak",
-        })
-
-        const stripePaymentMethod = await stripe.paymentMethods.create({
-            type: "card",
-            card: {
-                number: createMuseumDto.card_number,
-                exp_month: createMuseumDto.exp_month,
-                exp_year: createMuseumDto.exp_year,
-                cvc: createMuseumDto.cvc,
-            },
-        }, {
-            stripeAccount: stripeAccount.id,
-        }) */
-
         await createFile?.generate();
-
-
         return res.status(HttpStatus.OK).json(responseUtil({
-            req, message: "The museum information is created. Enjoy :)", body: museum
+            req, message: "The museum information is created. Enjoy :)", body: data
         }));
-
-    }
-
-    @Post("admin/museums/connect-to-stripe")
-    async connectStripePaymentToMuseum(@Req() req: Request, @Res() res: Response,
-        @Body(new JoiValidationPipe(connectStripeToMuseumSchema)) createDto: ConnectStripeToMuseumDto,) {
-        try {
-            const museum = await this.museumsService.findById(createDto.museum_id);
-
-            const [stripeAccount, stripePaymentMethod] = await Promise.all([
-                stripe.accounts.create({
-                    type: "standard",
-                    country: museum.country.locale,
-                    default_currency: "lak",
-                }),
-                stripe.paymentMethods.create({
-                    type: "card",
-                    card: {
-                        number: createDto.card_number,
-                        exp_month: createDto.exp_month,
-                        exp_year: createDto.exp_year,
-                        cvc: createDto.cvc,
-                    },
-                })
-            ]);
-
-            await stripe.paymentMethods.update(stripePaymentMethod.id, {
-            }, {
-                stripeAccount: stripeAccount.id,
-            })
-
-            /* const createPaymentWallet = await this.paymentWalletsService.create() */
-
-            await this.museumsService.update({
-                id: createDto.museum_id,
-
-            })
-
-        } catch (e) {
-            throw new CustomException({ message: "Stripe errors", error: e });
-        }
-
-    }
-
-    /* superadmin */
+    } */
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/museums/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
-        const data = await this.museumsService.findByIdForSuperadmin(Number(id));
+        const data = await this.museumsService.findById(Number(id));
         return res.json(responseUtil({
             req,
             body: data,
@@ -225,12 +184,12 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/museums")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: MuseumQuery) {
         const q_museum_id = museum_id ? Number(museum_id) : undefined;
-        const data_fixed = await this.museumsService.findAllForSuperadmin(q_museum_id);
-        const data_temp = await this.museumsService.findAllForSuperadmin(q_museum_id, {
+        const data_fixed = await this.museumsService.findAll(q_museum_id);
+        const data_temp = await this.museumsService.findAll(q_museum_id, {
             filter,
             ...query,
         });
@@ -243,19 +202,27 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/museums")
-    @UseInterceptors(FileInterceptor("file"))
+    @UseInterceptors(FileInterceptor("logo_image_file"))
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new FormDataValidationPipe(createMuseumSchemaForSuperadmin)) createDto: CreateMuseumDto,
         @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
         try {
+
+            let openCloseTime;
+
+            if (createDto.open_time && createDto.close_time) {
+                openCloseTime = checkTimeStartAndEnd(createDto.open_time, createDto.close_time)
+            }
             const createFile = createfileGenerator(file, PREFIX, createDto.name);
-            const data = await this.museumsService.createForSuperadmin({
+            const data = await this.museumsService.create({
                 ...createDto,
-                ...(createDto.phone && { phone: `+${createDto.phone}` }),
-                logo: createFile?.filePath,
+                logo_image_path: createFile?.filePath,
+                open_time: openCloseTime?.start_time,
+                close_time: openCloseTime?.end_time,
             });
+
             await createFile?.generate();
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.created, body: data, }));
@@ -266,19 +233,84 @@ export class MuseumsController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
+    @Post("superadmin/museums/owner")
+    @UseInterceptors(FileFieldsInterceptor([
+        { name: 'logo_image_file', maxCount: 1 },
+        { name: 'profile_image_file', maxCount: 1 },
+    ]))
+    async createForSuperadminToTheOwnerOfMuseum(@Req() req: Request, @Res() res: Response,
+        @Body(new FormDataValidationPipe(createMuseumWithOwnerSchemaForSuperadmin)) createDto: CreateMuseumWithOwnerDto,
+        @UploadedFiles(new FileFieldValidationPipe()) file: { logo_image_file?: Express.Multer.File[], profile_image_file?: Express.Multer.File[] }) {
+        try {
+            /* let openCloseTime;
+
+            if (createDto.open_time && createDto.close_time) {
+                openCloseTime = checkTimeStartAndEnd(createDto.open_time, createDto.close_time)
+            }
+            const createFile = createfileGenerator(logo_image_file, PREFIX, createDto.name);
+            const data = await this.museumsService.create({
+                ...createDto,
+                logo_image_path: createFile?.filePath,
+                open_time: openCloseTime?.start_time,
+                close_time: openCloseTime?.end_time,
+            });
+            await createFile?.generate();
+
+            return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.created, body: data, })); */
+
+            const createFileOwner = createfileGenerator(file.profile_image_file?.[0], "users", createDto.owner.username);
+            const createFileMuseum = createfileGenerator(file.logo_image_file?.[0], PREFIX, createDto.museum.name);
+
+            const data = await this.museumsService.createMuseumAndOwner({
+                museum: {
+                    ...createDto.museum,
+                    logo_image_path: createFileMuseum?.filePath,
+                },
+                owner: {
+                    ...createDto.owner,
+                    profile_image_path: createFileOwner?.filePath,
+                }
+            });
+
+            await createFileOwner?.generate();
+            await createFileMuseum?.generate();
+
+            return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.created, body: data, }));
+
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    @UseGuards(AuthGuard)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/museums")
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('logo_image_file'))
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
-        @Body(new FormDataValidationPipe(updateMuseumSchema)) updateDto: UpdateMuseumDto,
+        @Body(new FormDataValidationPipe(updateMuseumSchemaForSuperadmin)) updateDto: UpdateMuseumDto,
         @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
         try {
-            const museum = await this.museumsService.findByIdForSuperadmin(updateDto.id);
-            const updateFile = updatefileGenerator(file, PREFIX, museum.name, updateDto.name || museum.name, museum.logo, updateDto.delete_image);
-            const data = await this.museumsService.updateForSuperadmin({
+            const museum = await this.museumsService.findById(updateDto.id);
+
+            let openCloseTime;
+
+            openCloseTime = checkTimeStartOrEnd({
+                input: updateDto.open_time,
+                value: museum.open_time,
+            },
+                {
+                    input: updateDto.close_time,
+                    value: museum.close_time,
+                }
+            )
+
+            const updateFile = updatefileGenerator(file, PREFIX, museum.name, updateDto.name || museum.name, museum.logo_image_path, updateDto.delete_image);
+            const data = await this.museumsService.update({
                 ...updateDto,
-                ...(updateDto.phone && { phone: `+${updateDto.phone}` }),
-                logo: updateFile?.filePath,
+                logo_image_path: updateFile?.filePath,
+                open_time: openCloseTime?.start_time,
+                close_time: openCloseTime?.end_time,
             });
             await updateFile.generate();
 
@@ -287,19 +319,18 @@ export class MuseumsController {
         } catch (e) {
             throw e;
         }
-
     }
 
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
-    @Delete("superadmin/museums/delete/:id")
+    @Roles(Role.ADMIN, Role.GOD)
+    @Delete("superadmin/museums/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
-            const museum = await this.museumsService.findByIdForSuperadmin(parseInt(id));
-            const deleteFile = deleteFileGenerator(museum.logo);
-            const data = await this.museumsService.deleteForSuperadmin({
+            const museum = await this.museumsService.findById(parseInt(id));
+            const deleteFile = deleteFileGenerator(museum.logo_image_path);
+            const data = await this.museumsService.delete({
                 id: museum.id,
             });
             await deleteFile?.generate();

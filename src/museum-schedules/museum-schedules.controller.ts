@@ -61,7 +61,7 @@ export class MuseumSchedulesController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER)
     @Get("admin/museum-schedules/:id")
     async findById(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
         const [_, access_token] = req.headers.authorization?.split(' ');
@@ -75,7 +75,7 @@ export class MuseumSchedulesController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER)
     @Get("admin/museum-schedules")
     async findAllByMuseumId(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: MuseumScheduleQuery) {
         const [_, access_token] = req.headers.authorization?.split(' ');
@@ -95,7 +95,7 @@ export class MuseumSchedulesController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Post("admin/museum-schedules")
     async create(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createMuseumScheduleschema)) createDto: CreateMuseumScheduleDto) {
@@ -134,7 +134,7 @@ export class MuseumSchedulesController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Put("admin/museum-schedules")
     async update(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updateMuseumScheduleschema)) updateDto: UpdateMuseumScheduleDto) {
@@ -189,7 +189,7 @@ export class MuseumSchedulesController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Delete("admin/museum-schedules/delete/:id")
     async delete(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {

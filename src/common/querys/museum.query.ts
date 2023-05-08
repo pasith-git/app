@@ -3,8 +3,7 @@ export default interface MuseumQuery {
         name: "asc" | "desc"
         email: "asc" | "desc"
         phone: "asc" | "desc"
-        info: "asc" | "desc"
-        description: "asc" | "desc"
+        address: "asc" | "desc"
         created_at: "asc" | "desc"
         updated_at: "asc" | "desc"
     }
@@ -13,15 +12,14 @@ export default interface MuseumQuery {
         name?: string
         email?: string
         phone?: string
-        info?: string
-        description?: string
+        address?: string
         created_at?: {
-            start_date: Date
-            end_date: Date
+            start_date: string
+            end_date: string
         }
         updated_at?: {
-            start_date: Date
-            end_date: Date
+            start_date: string
+            end_date: string
         }
     }
     limit?: string

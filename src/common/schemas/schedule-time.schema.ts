@@ -7,6 +7,7 @@ const createScheduletimeSchemaPattern = {
     title: Joi.string().max(70).trim().required(),
     start_time: Joi.date().format("HH:mm").required(),
     end_time: Joi.date().format("HH:mm").required(),
+    capacity_limit: Joi.number().integer().required(),
 }
 
 const updateScheduletimeSchemaPattern = {
@@ -14,6 +15,7 @@ const updateScheduletimeSchemaPattern = {
     title: Joi.string().max(70).trim(),
     start_time: Joi.date().format("HH:mm"),
     end_time: Joi.date().format("HH:mm"),
+    capacity_limit: Joi.number().integer(),
 }
 
 export const createScheduleTimeschema = Joi.object({

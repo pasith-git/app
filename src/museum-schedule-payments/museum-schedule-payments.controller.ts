@@ -116,7 +116,7 @@ export class MuseumSchedulePaymentsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER)
     @Get("")
     async findAll(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: MuseumSchedulePaymentQuery) {
         /* const [_, access_token] = req.headers.authorization?.split(' ');
@@ -136,7 +136,7 @@ export class MuseumSchedulePaymentsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Post("")
     @UseInterceptors(FilesInterceptor("files"))
     async createMany(@Req() req: Request, @Res() res: Response,
@@ -231,7 +231,7 @@ export class MuseumSchedulePaymentsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Put("")
     @UseInterceptors(FilesInterceptor('files'))
     async updateMany(@Req() req: Request, @Res() res: Response,
@@ -273,7 +273,7 @@ export class MuseumSchedulePaymentsController {
     }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Post("delete")
     async deleteMany(@Req() req: Request, @Res() res: Response, @Body(new JoiValidationPipe(deleteManyMuseumSchedulePaymentSchema)) deleteManyDto: DeleteMuseumSchedulePaymentDto[]) {
         try {

@@ -8,24 +8,26 @@ export interface CreateUserDto {
     last_name: string
     phone: string
     gender: Gender
-    gender_other_info: string
     country_id: number
-    district_id: number
-    village: string
-    info: string
+    /* village: string */
+    is_deleted: boolean
     is_active: boolean
-    is_staff: boolean
     role_ids: number[]
-    image_path?: string
-    museum_id: number
-    stripe_customer_id?: string
+    profile_image_path?: string
+    museum_id?: number
+    last_login_at?: Date
+}
+
+export interface ResetPasswordDto {
+    phone: string
+    new_password?: string
+    code?: string
 }
 
 export interface UpdateUserDto extends Partial<CreateUserDto> {
     id: number
     delete_image?: boolean
     museum_id?: number
-    last_login?: Date
 }
 
 export interface DeleteUserDto {

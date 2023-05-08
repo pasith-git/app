@@ -1,11 +1,12 @@
 enum Role {
-    SUPERADMIN = 'superadmin',
+    GOD = 'god',
     ADMIN = 'admin',
     ACCOUNTANT = 'accountant',
     MANAGER = 'manager',
     USER = 'user',
     OWNER = 'owner',
-    GUIDE = 'guide',
+    AGENT = 'agent',
+    CASHIER = 'cashier',
 }
 
 export default Role

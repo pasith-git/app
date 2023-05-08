@@ -3,4 +3,5 @@ export const ErrorCode = {
     invalidDate: "1ND",
     raUpdate: "RAU",
     raCreate: "RAC",
+    bookingEx: "BEX"
 }

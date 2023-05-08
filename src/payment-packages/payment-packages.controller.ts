@@ -35,7 +35,7 @@ export class PaymentPackagesController {
         private packagesService: PackagesService, private usersService: UsersService, private authService: AuthService, private prisma: PrismaService) { }
 
     @UseGuards(AuthGuard, MuseumIdGuard)
-    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.GUIDE, Role.SUPERADMIN, Role.OWNER)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER)
     @Get("payment-packages")
     async findAll(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: PaymentPackageQuery) {
         const [_, access_token] = req.headers.authorization?.split(' ');
@@ -116,11 +116,11 @@ export class PaymentPackagesController {
             const user = await this.usersService.findById(jwtPayload["id"]);
             const total = Number(_package.price) - (Number(_package.price) * Number(_package.discount || 0));
             const createFile = createfileGenerator(file, PREFIX, PREFIX);
-            const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date));
+            /* const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date));
 
             if (isPaid) {
                 throw new CustomException({ error: "The User is already paid packages" })
-            }
+            } */
 
             const data = await this.paymentPackagesService.create({
                 ...createDto,
@@ -151,7 +151,7 @@ export class PaymentPackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/payment-packages")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response) {
         const paymentPackages = await this.paymentPackagesService.findAllForSuperadmin();
@@ -162,7 +162,7 @@ export class PaymentPackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/payment-packages")
     @UseInterceptors(FileInterceptor("file"))
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
@@ -171,11 +171,11 @@ export class PaymentPackagesController {
         @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
         try {
             const user = await this.usersService.findById(createDto.user_id);
-            const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date) && payment_package.status === "success");
+            /* const isPaid = user.payment_packages.some(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date) && payment_package.status === "success");
 
             if (isPaid) {
                 throw new CustomException({ error: "The User is already paid packages" })
-            }
+            } */
 
             const _package = await this.packagesService.findById(createDto.package_id);
             const createFile = createfileGenerator(file, PREFIX, PREFIX);
@@ -199,7 +199,7 @@ export class PaymentPackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/payment-packages")
     @UseInterceptors(FileInterceptor('file'))
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
@@ -223,7 +223,7 @@ export class PaymentPackagesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Delete("superadmin/payment-packages/delete/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {

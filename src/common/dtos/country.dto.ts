@@ -1,6 +1,6 @@
 export interface CreateCountryDto {
     name: string
-    image_path?: string
+    flag_image_path?: string
     num_code?: string
     locale: string
 }

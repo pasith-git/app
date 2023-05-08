@@ -11,9 +11,7 @@ import { CustomException } from 'common/exceptions/custom.exception';
 import responseUtil from 'common/utils/response.util';
 import exclude from 'common/utils/exclude.util';
 import dayjsUtil from 'common/utils/dayjs.util';
-import { MuseumsService } from 'museums/museums.service';
 import { TwilioService } from 'twilio/twilio.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventsGateway } from 'gateway/events.gateway';
 import { AuthGuard } from 'common/guards/auth.guard';
 import { FormDataValidationPipe } from 'common/pipes/form-data-validation.pipe';
@@ -52,13 +50,13 @@ export class AuthController {
             if (user) {
                 const isPassword = this.authService.comparePassword(loginDto.password, user.password);
                 if (isPassword) {
-                    if (!user.is_active && !user.is_staff) {
+                    if (!user.is_active && user.is_deleted) {
                         throw new CustomException({ error: "Access to the system should be granted by an administrator first" });
                     }
 
                     await this.usersService.update({
                         id: user.id,
-                        last_login: dayjsUtil().toDate(),
+                        last_login_at: dayjsUtil().toDate(),
                     })
 
                     const tokenPayload = {
@@ -66,7 +64,6 @@ export class AuthController {
                         username: user.username,
                         email: user.email,
                         roles: user.roles.map(data => data.role.name.toUpperCase()),
-                        is_staff: user.is_staff,
                     }
                     const accessToken = this.authService.jwtSign({
                         ...tokenPayload,
@@ -133,8 +130,8 @@ export class AuthController {
     @Post("register")
     async register(@Req() req: Request, @Res() res: Response, @Body(new JoiValidationPipe(registerSchema)) registerDto: RegisterDto) {
         try {
-            const email = await this.usersService.findByEmail(registerDto.phone);
-            const username = await this.usersService.findByUsername(registerDto.phone);
+            const email = await this.usersService.findByEmail(registerDto.email);
+            const username = await this.usersService.findByUsername(registerDto.username);
             const phone = await this.usersService.findByPhone(registerDto.phone);
             if (email) {
                 throw new CustomException({ error: "Email is exist" });
@@ -151,6 +148,7 @@ export class AuthController {
             if (e.code === "P2002") {
                 throw e;
             }
+            console.log(e);
             throw new CustomException({ error: "The phone number is incorrect" });
         }
     }
@@ -161,24 +159,23 @@ export class AuthController {
         @UploadedFile(new FileValidationPipe()) file: Express.Multer.File) {
         try {
             const createFile = createfileGenerator(file, "users", registerDto.username);
-            /* await this.twilioService.verifySmsCode(registerDto.phone, registerDto.code); */
+            await this.twilioService.verifySmsCode(registerDto.phone, registerDto.code);
             const data = await this.usersService.register({
                 ...registerDto,
                 image_path: createFile?.filePath
             });
-
-            const stripeCustomer = await stripe.customers.create({
+            await createFile?.generate();
+            /* const stripeCustomer = await stripe.customers.create({
                 email: data.email,
                 name: `${data.first_name} ${data.last_name}`,
                 phone: data.phone,
             });
 
-            await createFile?.generate();
             const updatedData = await this.usersService.update({
                 id: data.id,
                 stripe_customer_id: stripeCustomer.id,
-            })
-            return res.status(HttpStatus.OK).json(responseUtil({ req, message: "Registered successfully ", body: exclude(updatedData, ["password"]) }));
+            }) */
+            return res.status(HttpStatus.OK).json(responseUtil({ req, message: "Registered successfully ", body: exclude(data, ["password"]) }));
         } catch (e) {
             if (e.code === "P2002") {
                 throw e;

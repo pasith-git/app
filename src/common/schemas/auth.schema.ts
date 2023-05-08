@@ -21,6 +21,7 @@ export const registerSchema = Joi.object({
 export const registerSchemaConfirm = Joi.object({
     /* code: Joi.string().trim().required(), */
     ...createUserSchemaPattern,
+    code: Joi.string().trim().required(),
 })
 
 export const refreshTokenSchema = Joi.object({

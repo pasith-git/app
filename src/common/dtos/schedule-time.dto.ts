@@ -4,6 +4,7 @@ export interface CreateScheduleTimeDto {
     start_time: Date
     end_time: Date
     museum_id: number
+    capacity_limit: number
 }
 
 export interface UpdateScheduleTimeDto extends Partial<CreateScheduleTimeDto> {

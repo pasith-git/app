@@ -48,7 +48,7 @@ export class DistrictsController {
 
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/districts/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
         const data = await this.districtsService.findByIdForSuperadmin(Number(id));
@@ -60,7 +60,7 @@ export class DistrictsController {
 
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/districts")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: DistrictQuery) {
         /* const [_, access_token] = req.headers.authorization.split(' ');
@@ -81,7 +81,7 @@ export class DistrictsController {
 
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/districts")
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createDistrictSchemaForSuperadmin)) createDto: CreateDistrictDto) {
@@ -98,7 +98,7 @@ export class DistrictsController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/districts")
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updateDistrictSchemaForSuperadmin)) updateDto: UpdateDistrictDto) {
@@ -115,7 +115,7 @@ export class DistrictsController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Delete("superadmin/districts/delete/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {

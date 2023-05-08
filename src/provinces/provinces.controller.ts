@@ -47,7 +47,7 @@ export class ProvincesController {
     /* superadmin */
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/provinces/:id")
     async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param('id') id: string) {
         const data = await this.provincesService.findByIdForSuperadmin(Number(id));
@@ -58,7 +58,7 @@ export class ProvincesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/provinces")
     async findAllForSuperadmin(@Req() req: Request, @Res() res: Response, @Query() { filter, ...query }: ProvinceQuery) {
         /* const [_, access_token] = req.headers.authorization.split(' ');
@@ -78,7 +78,7 @@ export class ProvincesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/provinces")
     async createForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(createProvinceSchemaForSuperadmin)) createDto: CreateProvinceDto) {
@@ -95,7 +95,7 @@ export class ProvincesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/provinces")
     async updateForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updateProvinceSchemaForSuperadmin)) updateDto: UpdateProvinceDto) {
@@ -112,7 +112,7 @@ export class ProvincesController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(Role.SUPERADMIN)
+    @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/provinces/delete/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {

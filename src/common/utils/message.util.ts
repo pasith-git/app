@@ -8,6 +8,7 @@ const MESSAGE = {
     datetime: {
         title: "Invalid Datetime",
         error: "Datetime is invalid",
+        expired: "The time for booking has expired",
     },
     time: {
         title: "Invalid time",
@@ -17,6 +18,7 @@ const MESSAGE = {
     created: "Created successfully",
     updated: "Updated successfully",
     deleted: "Deleted successfully",
+    deleteFailed : "Deletion was unsuccessful" 
 
 }
 

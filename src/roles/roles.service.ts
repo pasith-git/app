@@ -8,87 +8,50 @@ import { PrismaService } from 'prisma/prisma.service';
 export class RolesService {
     constructor(private prisma: PrismaService) { }
 
-    async findByName(name: string) {
-        return this.prisma.role.findFirst({
-            where: {
-                name: {
-                    equals: name,
-                    not: {
-                        equals: "superadmin",
-                    }
-                }
-            }
-        })
-    }
-
-    async findById(id: number) {
+    async findById(id: number, withOutSuperAdmin?: boolean) {
         return this.prisma.role.findFirst({
             where: {
                 id,
-                name: {
-                    not: {
-                        equals: "superadmin",
+                ...(withOutSuperAdmin && {
+                    name: {
+                        notIn: ["admin", "user", "god"]
                     }
-                }
+                })
             }
         })
     }
 
+    async findByName(name: string){
+        return this.prisma.role.findFirst({
+            where: {
+                name
+            }
+        })
+    }
 
-    async findByIdsWithoutSuperAdmin(ids: number[]) {
+    async findByIds(ids: number[], withOutSuperAdmin?: boolean) {
         return this.prisma.role.findMany({
             where: {
                 id: {
-                    in: ids,
+                    in: ids
                 },
-                name: {
-                    not: {
-                        equals: "superadmin",
+                ...(withOutSuperAdmin && {
+                    name: {
+                        notIn: ["admin", "user", "god"]
                     }
-                }
+                })
             }
         })
     }
 
-    async findAll(query?: RoleQuery) {
+    async findAll(query?: RoleQuery, withOutSuperAdmin?: boolean) {
         return this.prisma.role.findMany({
             where: {
                 name: {
                     contains: query?.filter?.name,
-                    notIn: ["superadmin", "user"]
-                },
-
-            },
-            orderBy: {
-                ...(query?.sort?.name && {
-                    name: query.sort.name
-                }),
-            },
-            ...(query?.limit && {
-                take: parseInt(query.limit),
-            }),
-            ...(query?.offset && {
-                skip: parseInt(query.offset),
-            }),
-        })
-    }
-    
-    /* superadmin */
-
-    async findByIdForSuperadmin(id: number) {
-        return this.prisma.role.findFirst({
-            where: {
-                id,
-            }
-        })
-    }
-
-    async findAllForSuperadmin(query?: RoleQuery) {
-        return this.prisma.role.findMany({
-            where: {
-                name: {
-                    contains: query?.filter?.name,
-                    notIn: ["superadmin", "user"]
+                    ...(withOutSuperAdmin && {
+                        notIn: ["admin", "god", "user"]
+                    })
                 },
 
             },
@@ -106,17 +69,8 @@ export class RolesService {
         })
     }
 
-    async findByNameForSuperadmin(name: string) {
-        return this.prisma.role.findFirst({
-            where: {
-                name: {
-                    equals: name,
-                }
-            }
-        })
-    }
 
-    async createForSuperadmin(createDto: CreateRoleDto) {
+    async create(createDto: CreateRoleDto) {
         return this.prisma.role.create({
             data: {
                 ...createDto,
@@ -124,7 +78,7 @@ export class RolesService {
         })
     }
 
-    async updateForSuperadmin({ id, ...updateDto }: UpdateRoleDto) {
+    async update({ id, ...updateDto }: UpdateRoleDto) {
 
         return this.prisma.role.update({
             where: {
@@ -136,12 +90,11 @@ export class RolesService {
         })
     }
 
-    async deleteForSuperadmin({ id }: DeleteRoleDto) {
+    async delete({ id }: DeleteRoleDto) {
         return this.prisma.role.delete({
             where: {
                 id,
             }
         })
     }
-
 }

@@ -6,7 +6,7 @@ import { PrismaService } from 'prisma/prisma.service';
 export class PaymentWalletsService {
     constructor(private prisma: PrismaService) { }
     async create({ user_id, ...createDto }: CreatePaymentMethodDto) {
-        return this.prisma.paymentWallets.create({
+        /* return this.prisma.paymentWallets.create({
             data: {
                 ...createDto,
                 user: {
@@ -19,6 +19,6 @@ export class PaymentWalletsService {
             include: {
                 user: true
             }
-        })
+        }) */
     }
 }
