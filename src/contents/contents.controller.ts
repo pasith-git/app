@@ -17,6 +17,7 @@ import MESSAGE from 'common/utils/message.util';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileValidationPipe } from 'common/pipes/file-validation.pipe';
 import { createfileGenerator, deleteFileGenerator, updatefileGenerator } from 'common/utils/image-processor.util';
+import { CustomException } from 'common/exceptions/custom.exception';
 
 const PREFIX = "contents";
 
@@ -81,6 +82,11 @@ export class ContentsController {
         const jwtPayload = this.authService.jwtVerify(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
         const data = await this.contentsService.findById(Number(id));
+
+        if (data.museum_id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
         return res.json(responseUtil({
             req,
             body: user.museum_id === data.museum_id ? data : {},
@@ -135,8 +141,17 @@ export class ContentsController {
         @Body(new FormDataValidationPipe(updateContentSchema)) updateDto: UpdateContentDto,
         @UploadedFile(new FileValidationPipe()) main_content_image_path: Express.Multer.File) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
+
             const dataById = await this.contentsService.findById(updateDto.id);
             const updateFile = updatefileGenerator(main_content_image_path, PREFIX, PREFIX, PREFIX, dataById.main_content_image_path, updateDto.delete_image);
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const data = await this.contentsService.update({
                 ...updateDto,
                 main_content_image_path: updateFile?.filePath,
@@ -157,7 +172,15 @@ export class ContentsController {
     async delete(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const dataById = await this.contentsService.findById(parseInt(id));
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const multiDeleteFile = dataById.photos.map(async (data) => {
                 const deleteFile = await deleteFileGenerator(data.path)?.generate();
                 return deleteFile

@@ -58,8 +58,13 @@ export class UsersController {
     async findByIdForAdmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
         const [_, access_token] = req.headers.authorization.split(' ');
         const jwtPayload = this.authService.jwtDecode(access_token);
-        const user = await this.usersService.findById(jwtPayload["id"]);
-        const data = await this.usersService.findById(Number(id));
+        const user = await this.usersService.findByIdAndThrow(jwtPayload["id"]);
+        const data = await this.usersService.findByIdAndThrow(Number(id));
+
+        if (data.museum_id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
         return res.json(responseUtil({
             req,
             body: data.museum_id === user.museum_id ? exclude(data, ['password']) : {},
@@ -98,6 +103,8 @@ export class UsersController {
             const [_, access_token] = req.headers.authorization.split(' ');
             const jwtPayload = this.authService.jwtDecode(access_token);
             const user = await this.usersService.findById(jwtPayload["id"]);
+
+
             /* const users = await this.usersService.findAll(user.museum_id); */
             /* const [payment_package] = user.payment_packages.filter(payment_package => dayjsUtil().isSameOrBefore(payment_package.package_end_date) && payment_package.status === "success");
 
@@ -155,7 +162,9 @@ export class UsersController {
         try {
 
             const data = await this.usersService.findByPhone(resetpasswordDto.phone);
-
+            if (!data) {
+                throw new CustomException({ error: "Phone isn't exist" });
+            }
             await this.twilioService.verifySmsCode(`${data.country.num_code}${resetpasswordDto.phone}`, resetpasswordDto.code);
 
             await this.usersService.update({
@@ -184,7 +193,16 @@ export class UsersController {
     async updateForAdmin(@Req() req: Request, @Res() res: Response, @Body(new FormDataValidationPipe(updateUserSchema)) updateDto: UpdateUserDto,
         @UploadedFile(new FileValidationPipe()) profile_image_file: Express.Multer.File) {
         try {
+
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const userToken = await this.usersService.findById(jwtPayload["id"]);
             const user = await this.usersService.findById(updateDto.id);
+
+            if (userToken.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const roleIds = await this.rolesService.findByIds(updateDto.role_ids, true);
             const updateFile = updatefileGenerator(profile_image_file, PREFIX, user.username, updateDto.username || user.username, user.profile_image_path, updateDto.delete_image);
             const data = await this.usersService.update({
@@ -212,8 +230,15 @@ export class UsersController {
     async updateProfileForAdmin(@Req() req: Request, @Res() res: Response, @Body(new FormDataValidationPipe(updateProfile))
     updateDto: UpdateUserDto, @UploadedFile(new FileValidationPipe()) profile_image_file: Express.Multer.File) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const userToken = await this.usersService.findById(jwtPayload["id"]);
             const user = await this.usersService.findById(updateDto.id);
             const updateFile = updatefileGenerator(profile_image_file, PREFIX, user.username, updateDto.username || user.username, user.profile_image_path, updateDto.delete_image);
+
+            if (userToken.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
 
             const data = await this.usersService.update({
                 ...updateDto,
@@ -242,8 +267,9 @@ export class UsersController {
             const userPayload = await this.usersService.findById(jwtPayload["id"]);
             const user = await this.usersService.findById(parseInt(id));
 
-            if (userPayload.museum_id !== user.museum_id) {
-                throw new CustomException({ error: MESSAGE.deleteFailed });
+
+            if (userPayload.id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
             }
 
             const deleteFile = deleteFileGenerator(user.profile_image_path);

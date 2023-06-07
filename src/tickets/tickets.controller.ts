@@ -19,6 +19,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { UsersService } from 'users/users.service';
 
 import { TicketsService } from './tickets.service';
+import { CustomException } from 'common/exceptions/custom.exception';
 
 const PREFIX = 'tickets';
 
@@ -82,6 +83,11 @@ export class TicketsController {
         const jwtPayload = this.authService.jwtVerify(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
         const data = await this.ticketsService.findById(Number(id));
+
+        if (data.booking.museum_id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
         return res.json(responseUtil({
             req,
             body: data,
@@ -126,7 +132,14 @@ export class TicketsController {
     async scanBookingCode(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(scanBookingTicketSchema)) { booking_code }: { booking_code: string }) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const data = await this.ticketsService.scanTicketByCode(booking_code);
+
+            if (data.booking.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: "The ticket is passed", body: data }));
 
@@ -142,6 +155,14 @@ export class TicketsController {
     async update(@Req() req: Request, @Res() res: Response,
         @Body(new JoiValidationPipe(updateTicketSchema)) updateDto: UpdateTicketDto,) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
+            const dataById = await this.ticketsService.findById(updateDto.id);
+
+            if (dataById.booking.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
             const data = await this.ticketsService.update({
                 ...updateDto,
             });
@@ -160,7 +181,15 @@ export class TicketsController {
     async delete(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const dataById = await this.ticketsService.findById(parseInt(id));
+
+            if (dataById.booking.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const data = await this.ticketsService.delete({
                 id: dataById.id,
             });

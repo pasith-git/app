@@ -139,6 +139,7 @@ model Museum {
   coupons                  Coupon[]
   prices                   Price[]
   banks                    Bank[]
+  ratings                  Rating[]
 
   @@map("museums")
 }
@@ -169,8 +170,9 @@ model User {
   employee_museum_schedule_payments MuseumSchedulePayment[] @relation("employee")
   contents                          Content[]
   galleries                         Gallery[]
-  payments                          Payment[]
-  bookings                          Booking[]
+  operate_bookings                  Booking[]               @relation("operate_bookings")
+  payment_bookings                  Booking[]               @relation("payment_bookings")
+  ratings                           Rating[]
 
   @@map("users")
 }
@@ -403,38 +405,41 @@ model Price {
 }
 
 model Booking {
-  id                  Int           @id @default(autoincrement())
-  museum_id           Int
-  user_id             Int?
-  booked_at           DateTime
-  way                 PaymentWay
-  type                PaymentType
-  is_foreigner        Boolean
-  total               Decimal       @db.Decimal(10, 2)
-  total_with_discount Decimal?      @db.Decimal(10, 2)
-  total_pay           Decimal?      @db.Decimal(10, 2)
-  total_charge        Decimal?      @db.Decimal(10, 2)
-  paid_at             DateTime?
-  status              Status
-  vat_percentage      Int           @default(0)
-  vat_amount          Int           @default(0)
-  number_of_adult     Int           @default(0)
-  number_of_child     Int           @default(0)
-  adult_total         Decimal       @default(0) @db.Decimal(10, 2)
-  child_total         Decimal       @default(0) @db.Decimal(10, 2)
-  discount_type       DiscountType?
-  discount_amount     Decimal?      @db.Decimal(10, 2)
-  schedule_time_str   String
-  schedule_date       DateTime      @db.Date
-  schedule_time_id    Int
-  people_amount       Int
-  created_at          DateTime      @default(now())
-  updated_at          DateTime      @updatedAt
+  id                   Int           @id @default(autoincrement())
+  museum_id            Int
+  user_id              Int?
+  paid_by_id           Int?
+  booked_at            DateTime
+  way                  PaymentWay
+  type                 PaymentType
+  is_foreigner         Boolean
+  total                Decimal       @db.Decimal(10, 2)
+  total_with_discount  Decimal?      @db.Decimal(10, 2)
+  total_pay            Decimal?      @db.Decimal(10, 2)
+  total_charge         Decimal?      @db.Decimal(10, 2)
+  paid_at              DateTime?
+  status               Status
+  confirmed_image_path String?       @unique
+  vat_percentage       Int           @default(0)
+  vat_amount           Int           @default(0)
+  number_of_adult      Int           @default(0)
+  number_of_child      Int           @default(0)
+  adult_total          Decimal       @default(0) @db.Decimal(10, 2)
+  child_total          Decimal       @default(0) @db.Decimal(10, 2)
+  discount_type        DiscountType?
+  discount_amount      Decimal?      @db.Decimal(10, 2)
+  schedule_time_str    String
+  schedule_date        DateTime      @db.Date
+  schedule_time_id     Int
+  people_amount        Int
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
 
   museum        Museum       @relation(fields: [museum_id], references: [id], onDelete: Restrict)
   schedule_time ScheduleTime @relation(fields: [schedule_time_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  user          User?        @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  payments      Payment[]
+  operate_by    User?        @relation(name: "operate_bookings", fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  paid_by       User?        @relation(name: "payment_bookings", fields: [paid_by_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payment       Payment?
   tickets       Ticket[]
 
   @@map("bookings")
@@ -456,57 +461,24 @@ model Coupon {
 }
 
 model Payment {
-  id                     Int           @id @default(autoincrement())
-  booking_id             Int
-  user_id                Int?
-  transaction_id         String        @unique
-  confirmed_image_path   String?       @unique
-  way                    PaymentWay
-  type                   PaymentType
-  is_foreigner           Boolean
-  total                  Decimal       @db.Decimal(10, 2)
-  total_with_discount    Decimal?      @db.Decimal(10, 2)
-  total_pay              Decimal?      @db.Decimal(10, 2)
-  total_charge           Decimal?      @db.Decimal(10, 2)
-  paid_at                DateTime?
-  booked_at              DateTime
-  status                 Status
-  number_of_adult        Int           @default(0)
-  number_of_child        Int           @default(0)
-  adult_total            Decimal       @default(0) @db.Decimal(10, 2)
-  child_total            Decimal       @default(0) @db.Decimal(10, 2)
-  discount_type          DiscountType?
-  discount_amount        Decimal?      @db.Decimal(10, 2)
-  discount_total         Decimal?      @db.Decimal(10, 2)
-  bank_reference_code    String?       @db.VarChar(70)
-  bank_bill_number       String?       @db.VarChar(70)
-  bank_bill_name         String?       @db.VarChar(70)
-  bank_bill_phone        String?       @db.VarChar(70)
-  bank_percentage        Decimal?      @db.Decimal(10, 2)
-  bank_percentage_amount Decimal?      @db.Decimal(10, 2)
-  created_at             DateTime      @default(now())
-  updated_at             DateTime      @updatedAt
+  id                     Int      @id @default(autoincrement())
+  booking_id             Int      @unique
+  transaction_id         String   @unique
+  invoice_id             String   @unique
+  total                  Decimal  @db.Decimal(10, 2)
+  bank_reference_code    String?  @db.VarChar(70)
+  bank_bill_number       String?  @db.VarChar(70)
+  bank_bill_name         String?  @db.VarChar(70)
+  bank_bill_phone        String?  @db.VarChar(70)
+  bank_percentage        Decimal? @db.Decimal(10, 2)
+  bank_percentage_amount Decimal? @db.Decimal(10, 2)
+  bank_bill_description  String?  @db.Text
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
 
-  booking         Booking         @relation(fields: [booking_id], references: [id], onDelete: Restrict)
-  user            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
-  payment_details PaymentDetail[]
+  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Restrict)
 
   @@map("payments")
-}
-
-model PaymentDetail {
-  id            Int       @id @default(autoincrement())
-  payment_id    Int
-  booking_code  String
-  is_printed    Boolean
-  is_checked_in Boolean
-  checked_at    DateTime?
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-
-  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
-
-  @@map("payment_details")
 }
 
 model Ticket {
@@ -533,4 +505,20 @@ model Bank {
 
   @@unique(fields: [name, museum_id], name: "uniq_1")
   @@map("banks")
+}
+
+model Rating {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  museum_id  Int
+  comment    String?  @db.Text
+  rating     Int      @db.UnsignedInt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user   User   @relation(fields: [user_id], references: [id])
+  museum Museum @relation(fields: [museum_id], references: [id])
+
+  @@unique(fields: [user_id, museum_id, rating], name: "uniq_1")
+  @@map("ratings")
 }

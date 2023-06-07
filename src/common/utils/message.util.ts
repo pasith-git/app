@@ -18,7 +18,8 @@ const MESSAGE = {
     created: "Created successfully",
     updated: "Updated successfully",
     deleted: "Deleted successfully",
-    deleteFailed : "Deletion was unsuccessful" 
+    deleteFailed: "Deletion was unsuccessful",
+    PermissionAccessingFailed: "You don't have permission to access data that is not your own",
 
 }
 

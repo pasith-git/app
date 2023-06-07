@@ -38,6 +38,7 @@ import { PaymentDetailsModule } from './payment-details/payment-details.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ReportsModule } from './reports/reports.module';
 import { BanksModule } from './banks/banks.module';
+import { RatingsModule } from './ratings/ratings.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -86,6 +87,7 @@ import { BanksModule } from './banks/banks.module';
     TicketsModule,
     ReportsModule,
     BanksModule,
+    RatingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -89,6 +89,7 @@ export class BookingsService {
                 id
             },
             include: {
+                payment: true,
                 museum: true,
                 tickets: true,
             }
@@ -101,7 +102,7 @@ export class BookingsService {
         }
     }
 
-    async create({ museum_id, schedule_time_id, user_amount, people, user_id, ...createDto }: CreateBookingDto) {
+    async create({ museum_id, schedule_time_id, user_amount, people, user_id, paid_by_id, transaction_id, invoice_id, description, ...createDto }: CreateBookingDto) {
         const schedule = await this.scheduleTimesService.findById(schedule_time_id);
         const schedule_time_str = `${dayjsUtil(schedule.start_time).utc().format("HH:mm")} - ${dayjsUtil(schedule.end_time).utc().format("HH:mm")}`;
         const bookings = await this.findAll(undefined, {
@@ -158,7 +159,7 @@ export class BookingsService {
             throw new CustomException({ error: `The museum schedule is full` });
         }
 
-        return this.prisma.booking.create({
+        const { operate_by: { password: password_operate_by, ...operate_by }, paid_by: { password: password_paid_by, ...paid_by }, ...data } = await this.prisma.booking.create({
             data: {
                 ...createDto,
                 schedule_time: {
@@ -198,17 +199,113 @@ export class BookingsService {
                             id: user_id,
                         }
                     },
+                }),
+                ...(paid_by_id && {
+                    paid_by: {
+                        connect: {
+                            id: paid_by_id,
+                        }
+                    },
                 })
+
 
             },
             include: {
+                payment: true,
+                operate_by: true,
+                paid_by: true,
                 museum: true,
                 tickets: true,
             }
         })
+
+        return {
+            ...data,
+            operate_by,
+            paid_by,
+        }
     }
 
-    async update({ id, schedule_time_id, user_amount, museum_id, user_id, ...updateDto }: UpdateBookingDto) {
+    async generateForQrCode({ museum_id, schedule_time_id, user_amount, people, user_id, transaction_id, invoice_id, description, ...createDto }: CreateBookingDto) {
+        const schedule = await this.scheduleTimesService.findById(schedule_time_id);
+        const schedule_time_str = `${dayjsUtil(schedule.start_time).utc().format("HH:mm")} - ${dayjsUtil(schedule.end_time).utc().format("HH:mm")}`;
+        const bookings = await this.findAll(undefined, {
+            filter: {
+                schedule_time_str,
+                schedule_date: createDto.schedule_date,
+            }
+        });
+
+        const all_of_booking_amount = bookings.reduce((prev, current) => prev + current.people_amount, 0);
+
+        const start_time_by_hour = dayjsUtil(schedule.start_time).utc().hour();
+        const start_time_by_minute = dayjsUtil(schedule.start_time).utc().minute();
+        const end_time_by_hour = dayjsUtil(schedule.end_time).utc().hour();
+        const end_time_by_minute = dayjsUtil(schedule.end_time).utc().minute();
+        const current_date = dayjsUtil();
+        const start_date = dayjsUtil(createDto.schedule_date, "DD/MM/YYYY").set("h", start_time_by_hour).set("m", start_time_by_minute);
+        const end_date = dayjsUtil(createDto.schedule_date, "DD/MM/YYYY").set("h", end_time_by_hour).set("m", end_time_by_minute);
+
+        if (!(end_date.isSameOrAfter(current_date))) {
+            throw new CustomException({ error: MESSAGE.datetime.expired, code: ErrorCode.bookingEx });
+        }
+        const user = await this.usersService.findById(user_id);
+        const is_foreigner = user ? user.country.name.toLowerCase() !== "laos" ? true : false : createDto.is_foreigner;
+
+        const people_booking = (await Promise.all(_.uniqBy(people, "age_group").map(async (data) => {
+            const price = await this.pricesService.findPriceForBooking(createDto.is_foreigner);
+            if (price) {
+                return {
+                    amount: data.amount,
+                    age_group: data.age_group,
+                    price: data.age_group === "adult" ? price.adult_price : price.child_price,
+                }
+            }
+        }))).filter(data => data !== undefined);
+
+        if (people.length !== people_booking.length) {
+            throw new CustomException({ error: `Please create the price data before proceeding` });
+        }
+
+        const total = people_booking.reduce((prev, current) => prev + (current.amount * Number(current.price)), 0);
+        const adult_total = people_booking.filter(data => data.age_group === "adult").reduce((prev, current) => prev + (current.amount * Number(current.price)), 0);
+        const number_of_adult = people_booking.filter(data => data.age_group === "adult").reduce((prev, current) => prev + current.amount, 0);
+        const child_total = people_booking.filter(data => data.age_group === "child").reduce((prev, current) => prev + (current.amount * Number(current.price)), 0);
+        const number_of_child = people_booking.filter(data => data.age_group === "child").reduce((prev, current) => prev + current.amount, 0);
+        let discount_total = createDto.discount_type === "money" ? createDto.discount_amount : total * Number(createDto.discount_amount) / 100;
+        let total_with_discount = total - (Number(discount_total) || 0);
+
+        if (createDto.total_pay && createDto.total_pay < total_with_discount) {
+            throw new CustomException({ error: `The amount paid is not enough for ${total_with_discount}` });
+        }
+
+        if ((all_of_booking_amount + number_of_adult + number_of_child) > schedule.capacity_limit) {
+            throw new CustomException({ error: `The museum schedule is full` });
+        }
+
+        return {
+            dto: {
+                ...createDto
+            },
+            total,
+            total_with_discount,
+            child_total,
+            adult_total,
+            number_of_adult,
+            number_of_child,
+            people_amount: number_of_adult + number_of_child,
+            ...(createDto.discount_type && {
+                discount_type: createDto.discount_type,
+                discount_amount: createDto.discount_amount,
+            }),
+            ...(createDto.total_pay && {
+                total_pay: createDto.total_pay,
+                total_charge: createDto.total_pay - Number(total_with_discount),
+            }),
+        }
+    }
+
+    async update({ id, schedule_time_id, user_amount, museum_id, user_id, transaction_id, invoice_id, ...updateDto }: UpdateBookingDto) {
         /* const schedule = await this.scheduleTimesService.findById(schedule_time_id);
         if (updateDto.schedule_date && schedule_time_id) {
             const start_time_by_hour = dayjsUtil(schedule.start_time).utc().hour();
@@ -273,6 +370,7 @@ export class BookingsService {
                 }),
             },
             include: {
+                payment: true,
                 museum: true,
                 tickets: true,
             }
@@ -286,6 +384,7 @@ export class BookingsService {
                 id,
             },
             include: {
+                payment: true,
                 museum: true,
                 tickets: true,
             }

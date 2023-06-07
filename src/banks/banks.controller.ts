@@ -17,6 +17,7 @@ import MESSAGE from 'common/utils/message.util';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileRequiredValidationPipe, FileValidationPipe } from 'common/pipes/file-validation.pipe';
 import { createfileGenerator, deleteFileGenerator, updatefileGenerator } from 'common/utils/image-processor.util';
+import { CustomException } from 'common/exceptions/custom.exception';
 
 const PREFIX = "banks";
 
@@ -81,6 +82,11 @@ export class BanksController {
         const jwtPayload = this.authService.jwtVerify(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
         const data = await this.banksService.findById(Number(id));
+
+        if (data.museum_id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
         return res.json(responseUtil({
             req,
             body: user.museum_id === data.museum_id ? data : {},
@@ -134,7 +140,15 @@ export class BanksController {
         @Body(new FormDataValidationPipe(updateBankSchema)) updateDto: UpdateBankDto,
         @UploadedFile(new FileValidationPipe()) qrcode_image_path: Express.Multer.File) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const dataById = await this.banksService.findById(updateDto.id);
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const updateFile = updatefileGenerator(qrcode_image_path, PREFIX, dataById.name, updateDto.name || dataById.name, dataById.qrcode_image_path, updateDto.delete_image);
             const data = await this.banksService.update({
                 ...updateDto,
@@ -156,7 +170,15 @@ export class BanksController {
     async delete(@Req() req: Request, @Res() res: Response,
         @Param('id') id: string) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const dataById = await this.banksService.findById(parseInt(id));
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const deleteFile = deleteFileGenerator(dataById.qrcode_image_path);
             const data = await this.banksService.delete({
                 id: dataById.id,

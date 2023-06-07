@@ -19,8 +19,15 @@ import { PrismaService } from 'prisma/prisma.service';
 import { UsersService } from 'users/users.service';
 
 import { GalleriesService } from './galleries.service';
+import { CustomException } from 'common/exceptions/custom.exception';
 
 const PREFIX = 'galleries';
+
+interface QUERY_TAKE {
+    museum?: string
+    author?: string
+    gallery_detail?: string
+}
 
 @Controller('')
 export class GalleriesController {
@@ -33,8 +40,8 @@ export class GalleriesController {
         const jwtPayload = await this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]); */
         const q_museum_id = museum_id ? Number(museum_id) : undefined;
-        const data_fixed = await this.galleriesService.findAll(q_museum_id);
-        const data_temp = await this.galleriesService.findAll(q_museum_id, {
+        const data_fixed = await this.galleriesService.findAllNormal(q_museum_id);
+        const data_temp = await this.galleriesService.findAllNormal(q_museum_id, {
             filter,
             ...query,
         });
@@ -47,8 +54,10 @@ export class GalleriesController {
     }
 
     @Get("galleries/:id")
-    async findById(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
-        const data = await this.galleriesService.findById(Number(id));
+    async findById(@Req() req: Request, @Res() res: Response, @Param("id") id: string, @Query() { take }: {
+        take?: QUERY_TAKE
+    }) {
+        const data = await this.galleriesService.findAllNormal(Number(id));
         return res.json(responseUtil({
             req,
             body: data,
@@ -78,11 +87,19 @@ export class GalleriesController {
     @UseGuards(AuthGuard, MuseumIdGuard)
     @Roles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.AGENT, Role.GOD, Role.OWNER, Role.CASHIER)
     @Get("admin/galleries/:id")
-    async findByIdForAdmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string) {
+    async findByIdForAdmin(@Req() req: Request, @Res() res: Response, @Param("id") id: string, @Query() { take }: {
+        take?: QUERY_TAKE
+    }) {
         const [_, access_token] = req.headers.authorization?.split(' ');
         const jwtPayload = this.authService.jwtVerify(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
-        const data = await this.galleriesService.findById(Number(id));
+        const data = await this.galleriesService.findById(Number(id), take);
+
+        if (data.museum_id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
+
         return res.json(responseUtil({
             req,
             body: user.museum_id === data.museum_id ? data : {},
@@ -94,7 +111,9 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Post("admin/galleries")
     async create(@Req() req: Request, @Res() res: Response,
-        @Body(new JoiValidationPipe(createGallerySchema)) createDto: CreateGalleryDto) {
+        @Body(new JoiValidationPipe(createGallerySchema)) createDto: CreateGalleryDto, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
             const [_, access_token] = req.headers.authorization?.split(' ');
             const jwtPayload = this.authService.jwtVerify(access_token);
@@ -113,7 +132,7 @@ export class GalleriesController {
                 ...createDto,
                 museum_id: user.museum_id,
                 author_id: user.id,
-            });
+            }, take);
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.created, body: data, }));
 
@@ -126,11 +145,22 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Put("admin/galleries")
     async update(@Req() req: Request, @Res() res: Response,
-        @Body(new JoiValidationPipe(updateGallerySchema)) updateDto: UpdateGalleryDto,) {
+        @Body(new JoiValidationPipe(updateGallerySchema)) updateDto: UpdateGalleryDto, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
+            const dataById = await this.galleriesService.findById(updateDto.id);
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const data = await this.galleriesService.update({
                 ...updateDto,
-            });
+            }, take);
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.updated, body: data }));
 
@@ -144,16 +174,26 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.MANAGER, Role.GOD, Role.OWNER)
     @Delete("admin/galleries/:id")
     async delete(@Req() req: Request, @Res() res: Response,
-        @Param('id') id: string) {
+        @Param('id') id: string, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const dataById = await this.galleriesService.findById(parseInt(id));
+
+            if (dataById.museum_id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+
             const multiDeleteFile = dataById.gallery_details.map(async (data) => {
                 const deleteFile = await deleteFileGenerator(data.gallery_image_path)?.generate();
                 return deleteFile
             })
             const data = await this.galleriesService.delete({
                 id: dataById.id,
-            });
+            }, take);
 
             await Promise.all(multiDeleteFile)
 
@@ -167,8 +207,10 @@ export class GalleriesController {
     @UseGuards(AuthGuard)
     @Roles(Role.ADMIN, Role.GOD)
     @Get("superadmin/galleries/:id")
-    async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param('id') id: string) {
-        const data = await this.galleriesService.findById(Number(id));
+    async findByIdForSuperadmin(@Req() req: Request, @Res() res: Response, @Param('id') id: string, @Query() { take }: {
+        take?: QUERY_TAKE
+    }) {
+        const data = await this.galleriesService.findById(Number(id), take);
         return res.json(responseUtil({
             req,
             body: data,
@@ -197,11 +239,13 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.GOD)
     @Post("superadmin/galleries")
     async createManyForSuperadmin(@Req() req: Request, @Res() res: Response,
-        @Body(new JoiValidationPipe(createGallerySchemaForSuperadmin)) createDto: CreateGalleryDto,) {
+        @Body(new JoiValidationPipe(createGallerySchemaForSuperadmin)) createDto: CreateGalleryDto, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
             const data = await this.galleriesService.create({
                 ...createDto,
-            });
+            }, take);
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.created, body: data, }));
 
@@ -214,11 +258,13 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.GOD)
     @Put("superadmin/galleries")
     async updateManyForSuperadmin(@Req() req: Request, @Res() res: Response,
-        @Body(new JoiValidationPipe(updateGallerySchemaForSuperadmin)) updateDto: UpdateGalleryDto) {
+        @Body(new JoiValidationPipe(updateGallerySchemaForSuperadmin)) updateDto: UpdateGalleryDto, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
             const data = await this.galleriesService.update({
                 ...updateDto,
-            });
+            }, take);
 
             return res.status(HttpStatus.OK).json(responseUtil({ req, message: MESSAGE.updated, body: data }));
 
@@ -232,7 +278,9 @@ export class GalleriesController {
     @Roles(Role.ADMIN, Role.GOD)
     @Delete("superadmin/galleries/:id")
     async deleteForSuperadmin(@Req() req: Request, @Res() res: Response,
-        @Param('id') id: string) {
+        @Param('id') id: string, @Query() { take }: {
+            take?: QUERY_TAKE
+        }) {
         try {
 
             const dataById = await this.galleriesService.findById(parseInt(id));
@@ -242,7 +290,7 @@ export class GalleriesController {
             })
             const data = await this.galleriesService.delete({
                 id: dataById.id,
-            });
+            }, take);
 
             await Promise.all(multiDeleteFile)
 

@@ -85,7 +85,7 @@ export class TicketsService {
         })
     }
 
-    async scanTicketByCode(booking_code: string){
+    async scanTicketByCode(booking_code: string) {
         const ticket = await this.prisma.ticket.findFirstOrThrow({
             where: {
                 booking_code,
@@ -95,11 +95,11 @@ export class TicketsService {
             }
         });
 
-        if(ticket.booking.status !== "success"){
+        if (ticket.booking.status !== "success") {
             throw new CustomException({ error: "The ticket didn't pay" });
         }
 
-        if(ticket.is_checked_in){
+        if (ticket.is_checked_in) {
             throw new CustomException({ error: "The ticket has been used" });
         }
 
@@ -110,6 +110,9 @@ export class TicketsService {
             data: {
                 is_checked_in: true,
                 checked_at: dayjsUtil().toDate(),
+            },
+            include: {
+                booking: true,
             }
         })
     }

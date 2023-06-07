@@ -35,9 +35,9 @@ export class MuseumsController {
 
     @Get("museums")
     async findAll(@Req() req: Request, @Res() res: Response, @Query() { filter: { museum_id, ...filter } = {}, ...query }: MuseumQuery) {
-        const [_, access_token] = req.headers.authorization?.split(' ');
+        /* const [_, access_token] = req.headers.authorization?.split(' ');
         const jwtPayload = await this.authService.jwtDecode(access_token);
-        const user = await this.usersService.findById(jwtPayload["id"]);
+        const user = await this.usersService.findById(jwtPayload["id"]); */
         const q_museum_id = museum_id ? Number(museum_id) : undefined;
         const data_fixed = await this.museumsService.findAllForNormal(q_museum_id);
         const data_temp = await this.museumsService.findAllForNormal(q_museum_id, {
@@ -69,6 +69,11 @@ export class MuseumsController {
         const jwtPayload = this.authService.jwtDecode(access_token);
         const user = await this.usersService.findById(jwtPayload["id"]);
         const data = await this.museumsService.findById(Number(id));
+
+        if (data.id !== user.museum_id) {
+            throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+        }
+
         return res.json(responseUtil({
             req,
             body: data.id === user.museum_id ? data : {},
@@ -103,8 +108,15 @@ export class MuseumsController {
         @Body(new FormDataValidationPipe(updateMuseumSchema)) updateDto: UpdateMuseumDto,
         @UploadedFile(new FileValidationPipe()) logo_image_file: Express.Multer.File) {
         try {
+            const [_, access_token] = req.headers.authorization?.split(' ');
+            const jwtPayload = await this.authService.jwtDecode(access_token);
+            const user = await this.usersService.findById(jwtPayload["id"]);
             const museum = await this.museumsService.findById(updateDto.id);
 
+            if (museum.id !== user.museum_id) {
+                throw new CustomException({ error: MESSAGE.PermissionAccessingFailed, }, HttpStatus.FORBIDDEN);
+            }
+            
             let openCloseTime;
 
             openCloseTime = checkTimeStartOrEnd({

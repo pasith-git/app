@@ -5,22 +5,8 @@ const Joi = JoiCore.extend(JoiDate) as typeof JoiCore;
 
 const createPaymentSchemaPattern = {
     booking_id: Joi.number().strict().required(),
-    user_id: Joi.number().strict(),
-    is_foreigner: Joi.boolean().required().when("user_id", {
-        is: Joi.number().required(),
-        then: Joi.forbidden(),
-    }),
-    total_pay: Joi.number().strict().precision(2).max(99999999.99).when("status", {
-        is: Joi.string().valid("success"),
-        then: Joi.number().required(),
-    }),
-    type: Joi.string().valid("bank", "cash").required(),
-    way: Joi.string().valid("booking", "walkin").required(),
-    status: Joi.string().valid("pending", "success", "failure").required(),
-    people: Joi.array().items({
-        amount: Joi.number().strict().required(),
-        price_id: Joi.number().strict().required(),
-    }).required(),
+    transaction_id: Joi.string().trim().required(),
+    invoice_id: Joi.string().trim().required(),
 }
 
 const updatePaymentSchemaPattern = {

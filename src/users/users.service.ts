@@ -144,7 +144,7 @@ export class UsersService {
                 contents: true,
                 country: true,
                 museum: true,
-
+                ratings: true,
             }
         });
     }
@@ -231,7 +231,27 @@ export class UsersService {
                 contents: true,
                 country: true,
                 museum: true,
+                ratings: true,
+            }
+        })
+    }
 
+
+    async findByIdAndThrow(id: number) {
+        return this.prisma.user.findFirstOrThrow({
+            where: {
+                id,
+            },
+            include: {
+                roles: {
+                    include: {
+                        role: true,
+                    }
+                },
+                contents: true,
+                country: true,
+                museum: true,
+                ratings: true,
             }
         })
     }

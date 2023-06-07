@@ -45,6 +45,65 @@ export const createBookingSchema = Joi.object({
     ...createBookingSchemaPattern,
 })
 
+export const generateQrCodeBookingSchema = Joi.object({
+    schedule_time_id: Joi.number().strict().required(),
+    schedule_date: Joi.date().format("DD/MM/YYYY").required(),
+    discount_type: Joi.string().valid("percent", "money"),
+    is_foreigner: Joi.boolean().required().when("user_id", {
+        is: Joi.number().required(),
+        then: Joi.forbidden(),
+    }),
+    total_pay: Joi.number().strict().precision(2).max(99999999.99).when("status", {
+        is: Joi.string().valid("success"),
+        then: Joi.number().required(),
+    }),
+    discount_amount: Joi.number().strict().when("discount_type", {
+        is: Joi.string().valid("percent").required(),
+        then: Joi.number().max(100).required(),
+    }).when("discount_type", {
+        is: Joi.string().valid("money").required(),
+        then: Joi.number().precision(2).max(99999999.99).required(),
+    }).when("discount_type", {
+        is: Joi.disallow("percent", "money"),
+        then: Joi.forbidden(),
+    }),
+    people: Joi.array().items({
+        amount: Joi.number().strict().required(),
+        age_group: Joi.string().valid("adult", "child").required(),
+    }).required(),
+})
+
+export const payBookingSchema = Joi.object({
+    schedule_time_id: Joi.number().strict().required(),
+    schedule_date: Joi.date().format("DD/MM/YYYY").required(),
+    discount_type: Joi.string().valid("percent", "money"),
+    is_foreigner: Joi.boolean().required().when("user_id", {
+        is: Joi.number().required(),
+        then: Joi.forbidden(),
+    }),
+    total_pay: Joi.number().strict().precision(2).max(99999999.99).when("status", {
+        is: Joi.string().valid("success"),
+        then: Joi.number().required(),
+    }),
+    discount_amount: Joi.number().strict().when("discount_type", {
+        is: Joi.string().valid("percent").required(),
+        then: Joi.number().max(100).required(),
+    }).when("discount_type", {
+        is: Joi.string().valid("money").required(),
+        then: Joi.number().precision(2).max(99999999.99).required(),
+    }).when("discount_type", {
+        is: Joi.disallow("percent", "money"),
+        then: Joi.forbidden(),
+    }),
+    people: Joi.array().items({
+        amount: Joi.number().strict().required(),
+        age_group: Joi.string().valid("adult", "child").required(),
+    }).required(),
+    transaction_id: Joi.string().trim().required(),
+    invoice_id: Joi.string().trim().required(),
+    description: Joi.string().trim().required(),
+})
+
 export const updateBookingSchema = Joi.object({
     ...updateBookingSchemaPattern,
 })
